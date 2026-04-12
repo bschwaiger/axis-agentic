@@ -1,0 +1,10 @@
+# Task File: Debug evaluation (n=20)
+model_name: "axis-mura-v1-4bit"
+dataset_path: "data/eval-020"
+manifest_path: "data/eval-020/manifest.csv"
+metrics: [mcc, sensitivity, specificity, confusion_matrix]
+baseline_values: {}
+output_dir: "results/eval-020"
+checkpoints: []
+abort_criteria:
+  parse_failure_rate: 0.2

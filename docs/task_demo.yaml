@@ -1,0 +1,19 @@
+# Task Config: Demo run — 1 model × 2 datasets
+model_name: "axis-mura-v1-4bit"
+
+datasets:
+  - name: "eval-020"
+    dataset_path: "data/eval-020"
+    manifest_path: "data/eval-020/manifest.csv"
+    output_dir: "results/eval-020"
+  - name: "eval-018"
+    dataset_path: "data/eval-018"
+    manifest_path: "data/eval-018/manifest.csv"
+    output_dir: "results/eval-018"
+
+baseline_values:
+  mcc: 0.637
+  sensitivity: 0.743
+  specificity: 0.920
+
+output_dir: "results/comparative"

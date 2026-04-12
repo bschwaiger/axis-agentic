@@ -1,0 +1,12 @@
+*.bin
+*.safetensors
+*.gguf
+models/
+.env
+__pycache__/
+*.pyc
+.DS_Store
+results/
+
+# MURA image data (regenerate with scripts/generate_subsets.py)
+data/*/XR_*

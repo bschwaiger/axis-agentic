@@ -1,0 +1,12 @@
+# Task File: Demo evaluation (n=100)
+model_name: "axis-mura-v1-4bit"
+dataset_path: "data/eval-100"
+manifest_path: "data/eval-100/manifest.csv"
+metrics: [mcc, sensitivity, specificity, precision, f1, confusion_matrix]
+baseline_values:
+  mcc: 0.637
+output_dir: "results/eval-100"
+checkpoints: [post_metrics, pre_report]
+abort_criteria:
+  mcc_below: 0.3
+  parse_failure_rate: 0.1
