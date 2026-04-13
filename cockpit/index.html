@@ -9,8 +9,7 @@
     --bg: #f5f5f7;
     --surface: #ffffff;
     --surface2: #fafafa;
-    --border: #e0e0e0;
-    --border-strong: #ccc;
+    --border: #e5e5ea;
     --text: #1d1d1f;
     --text-dim: #86868b;
     --accent: #0071e3;
@@ -28,8 +27,7 @@
     --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', Roboto, Helvetica, Arial, sans-serif;
     --font-mono: 'SF Mono', 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'Consolas', monospace;
     --radius: 10px;
-    --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
-    --shadow-lg: 0 4px 12px rgba(0,0,0,0.08);
+    --shadow: 0 1px 3px rgba(0,0,0,0.06);
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -40,175 +38,135 @@
     color: var(--text);
     font-size: 14px;
     line-height: 1.5;
-    height: 100vh;
-    overflow: hidden;
     -webkit-font-smoothing: antialiased;
   }
 
-  /* ---- Header ---- */
-  .header {
+  /* ---- Two-panel layout ---- */
+  .layout {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 14px 24px;
+    min-height: 100vh;
+  }
+
+  /* ---- Left sidebar: sticky ---- */
+  .sidebar {
+    width: 280px;
+    flex-shrink: 0;
     background: var(--surface);
+    border-right: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+  .sidebar-header {
+    padding: 20px 20px 16px;
     border-bottom: 1px solid var(--border);
   }
-  .header h1 {
+  .sidebar-header h1 {
     font-size: 18px;
     font-weight: 700;
     letter-spacing: -0.3px;
   }
-  .header h1 span { color: var(--accent); }
-  .header .status {
-    font-size: 13px;
+  .sidebar-header h1 span { color: var(--accent); }
+  .sidebar-status {
+    font-size: 12px;
     color: var(--text-dim);
+    margin-top: 4px;
     display: flex;
     align-items: center;
     gap: 6px;
   }
   .status-dot {
-    width: 8px; height: 8px; border-radius: 50%; background: var(--border-strong);
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--border);
+    flex-shrink: 0;
   }
   .status-dot.connected { background: var(--green); }
   .status-dot.running { background: var(--accent); animation: pulse 1.5s infinite; }
   .status-dot.error { background: var(--red); }
-  @keyframes pulse {
-    0%,100% { opacity: 1; } 50% { opacity: 0.4; }
-  }
+  @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
 
-  /* ---- Layout ---- */
-  .main {
-    display: grid;
-    grid-template-columns: minmax(200px, 280px) 1fr minmax(220px, 340px);
-    height: calc(100vh - 57px);
-    gap: 0;
-  }
-  @media (max-width: 900px) {
-    .main {
-      grid-template-columns: 1fr;
-      grid-template-rows: auto 1fr auto;
-    }
-    .panel, .center-col { border-right: none; border-bottom: 1px solid var(--border); }
-    .log-area { max-height: 40vh; }
-  }
-
-  .panel {
-    overflow-y: auto;
-    padding: 20px;
-    border-right: 1px solid var(--border);
-  }
-  .panel:last-child { border-right: none; }
-  .panel-title {
+  .sidebar-title {
     font-size: 11px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 1.2px;
     color: var(--text-dim);
-    margin-bottom: 14px;
+    padding: 16px 20px 8px;
   }
 
-  /* ---- Left: Steps ---- */
+  /* ---- Pipeline steps ---- */
+  .steps { padding: 0 20px 16px; flex: 1; }
   .step {
     display: flex;
-    align-items: flex-start;
     gap: 12px;
-    padding: 10px 0;
-    border-bottom: 1px solid var(--border);
+    padding: 8px 0;
+    position: relative;
   }
-  .step:last-child { border-bottom: none; }
+  /* Vertical connector line */
+  .step:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    left: 10px;
+    top: 32px;
+    bottom: -8px;
+    width: 2px;
+    background: var(--border);
+  }
+  .step:not(:last-child).step-done::after { background: var(--green); }
+
   .step-dot {
     width: 22px; height: 22px; border-radius: 50%;
     border: 2px solid var(--border);
     display: flex; align-items: center; justify-content: center;
     font-size: 11px; font-weight: 700;
-    flex-shrink: 0; margin-top: 1px;
+    flex-shrink: 0;
+    z-index: 1;
+    background: var(--surface);
     transition: all 0.2s;
   }
   .step-dot.pending { border-color: var(--border); color: var(--border); }
   .step-dot.running { border-color: var(--accent); color: var(--accent); animation: pulse 1.5s infinite; }
   .step-dot.done { border-color: var(--green); background: var(--green); color: white; }
   .step-dot.error { border-color: var(--red); background: var(--red); color: white; }
+
+  .step-content { flex: 1; min-width: 0; }
   .step-label { font-size: 14px; font-weight: 500; }
-  .step-detail { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
-
-  /* ---- Metrics cards ---- */
-  .metric-card {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 12px 14px;
-    margin-top: 10px;
+  .step-detail { font-size: 12px; color: var(--text-dim); margin-top: 1px; }
+  .step-milestones { margin-top: 4px; }
+  .milestone {
+    font-size: 11px;
+    color: var(--text-dim);
+    padding: 1px 0;
+    display: flex;
+    align-items: center;
+    gap: 4px;
   }
-  .metric-card .card-title {
-    font-size: 12px; font-weight: 700; color: var(--accent); margin-bottom: 8px;
-  }
-  .metric-row {
-    display: flex; justify-content: space-between;
-    font-size: 13px; font-family: var(--font-mono); padding: 2px 0;
-  }
-  .metric-row .label { color: var(--text-dim); }
-  .metric-row .value { font-weight: 600; }
-
-  /* ---- Results group ---- */
-  .results-group {
-    margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border);
-    display: none;
-  }
-  .results-group .panel-title { margin-bottom: 8px; }
-  .result-line {
-    font-size: 12px; color: var(--text-dim); padding: 3px 0;
-    border-bottom: 1px dotted var(--border);
-  }
-
-  /* ---- Center: Log + Progress ---- */
-  .center-col {
-    display: flex; flex-direction: column; border-right: 1px solid var(--border);
-  }
-  .log-area {
-    flex: 1; overflow-y: auto; padding: 16px 20px;
-    background: var(--surface);
-  }
-  #log { display: flex; flex-direction: column; gap: 2px; }
-
-  .log-entry {
-    padding: 5px 10px;
-    border-radius: 6px;
-    font-size: 13px;
-    font-family: var(--font-mono);
-    word-break: break-word;
-    line-height: 1.4;
-  }
-  .log-entry .ts { color: var(--text-dim); font-size: 11px; margin-right: 8px; }
-  .log-entry.tool-call { background: var(--accent-light); color: var(--accent); }
-  .log-entry.tool-result { background: var(--green-light); color: #1a7a34; }
-  .log-entry.nemotron-text { background: var(--purple-light); color: var(--purple); font-style: italic; }
-  .log-entry.error-entry { background: var(--red-light); color: var(--red); font-weight: 600; }
-  .log-entry.info-entry { background: var(--surface2); color: var(--text); }
-  .log-entry.api-call { background: var(--orange-light); color: var(--orange); }
-  .log-entry.api-response { background: var(--orange-light); color: var(--orange); }
-  .log-entry.ascii-block {
-    background: var(--surface2); color: var(--text);
-    white-space: pre; font-size: 12px; line-height: 1.3;
-    border: 1px solid var(--border); padding: 10px 12px;
-  }
-
-  /* ---- Progress bar ---- */
-  .progress-bar-area {
-    padding: 12px 20px 14px;
-    background: var(--surface);
-    border-top: 1px solid var(--border);
+  .milestone::before {
+    content: '';
+    width: 4px; height: 4px;
+    border-radius: 50%;
+    background: var(--green);
     flex-shrink: 0;
   }
+
+  /* ---- Progress bar in sidebar ---- */
+  .sidebar-progress {
+    padding: 12px 20px 16px;
+    border-top: 1px solid var(--border);
+  }
   .progress-label {
-    font-size: 12px; color: var(--text-dim); margin-bottom: 6px;
+    font-size: 12px; color: var(--text-dim);
+    margin-bottom: 6px;
     display: flex; justify-content: space-between;
   }
   .progress-track {
-    height: 8px; background: var(--bg); border-radius: 4px; overflow: hidden;
+    height: 6px; background: var(--bg); border-radius: 3px; overflow: hidden;
   }
   .progress-fill {
-    height: 100%; width: 0%; border-radius: 4px;
+    height: 100%; width: 0%; border-radius: 3px;
     background: var(--accent);
     transition: width 0.3s ease;
   }
@@ -218,35 +176,45 @@
     background-size: 200% 100%;
     animation: shimmer 1.5s linear infinite;
   }
-  @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+  @keyframes shimmer { 0%{background-position:200% 0;} 100%{background-position:-200% 0;} }
 
-  /* ---- Right: Setup / Results ---- */
-  .setup-section { margin-bottom: 18px; }
+  /* ---- Main area: scrollable ---- */
+  .main-area {
+    flex: 1;
+    min-width: 0;
+    padding: 24px 32px 60px;
+    max-width: 900px;
+  }
+
+  /* ---- Setup form ---- */
+  #setupView { max-width: 600px; }
+  .setup-section { margin-bottom: 24px; }
   .setup-section label {
-    display: block; font-size: 11px; font-weight: 700;
+    display: block;
+    font-size: 11px; font-weight: 700;
     text-transform: uppercase; letter-spacing: 1px;
-    color: var(--text-dim); margin-bottom: 8px;
+    color: var(--text-dim);
+    margin-bottom: 10px;
   }
   .option-list { list-style: none; }
   .option-list li {
-    padding: 10px 12px;
+    padding: 12px 14px;
     border: 1px solid var(--border);
     border-radius: 8px;
     margin-bottom: 6px;
     cursor: pointer;
     transition: all 0.15s;
-    font-size: 14px;
   }
   .option-list li:hover { border-color: var(--accent); background: var(--accent-light); }
   .option-list li.selected { border-color: var(--accent); background: var(--accent-light); }
+  .option-list li .name { font-weight: 500; }
   .option-list li .desc { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
   .setup-hint {
     font-size: 12px; color: var(--text-dim); font-style: italic;
-    margin-top: 8px; padding-top: 6px; border-top: 1px dotted var(--border);
-    line-height: 1.4;
+    margin-top: 8px; line-height: 1.4;
   }
   .setup-input {
-    width: 100%; margin-top: 6px; padding: 7px 10px;
+    width: 100%; margin-top: 6px; padding: 8px 12px;
     border: 1px solid var(--border); border-radius: 6px;
     font-family: var(--font-mono); font-size: 12px;
     background: var(--surface2); color: var(--text);
@@ -260,92 +228,262 @@
     font-size: 14px; font-weight: 600;
     transition: all 0.15s;
   }
-  .btn:hover { opacity: 0.9; transform: translateY(-1px); }
-  .btn:active { transform: translateY(0); }
-  .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+  .btn:hover { opacity: 0.9; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
   .btn-primary { background: var(--accent); color: white; }
   .btn-green { background: var(--green); color: white; }
   .btn-red { background: var(--red); color: white; }
   .btn-dim { background: var(--surface2); color: var(--text-dim); border: 1px solid var(--border); }
 
-  /* ---- Checkpoint ---- */
-  .checkpoint-box {
-    background: var(--yellow-light);
-    border: 1px solid var(--yellow);
+  /* ---- Feed: the main scrollable content ---- */
+  #feed { display: none; }
+  #feed.active { display: block; }
+
+  .feed-entry {
+    margin-bottom: 8px;
     border-radius: var(--radius);
-    padding: 16px; margin: 12px 0;
+    font-size: 13px;
+    font-family: var(--font-mono);
+    word-break: break-word;
+    line-height: 1.5;
   }
-  .checkpoint-box h3 { font-size: 14px; margin-bottom: 10px; color: var(--text); }
-  .checkpoint-box .query-item {
-    display: flex; align-items: center; gap: 8px; padding: 4px 0;
+
+  /* Compact log lines */
+  .feed-log {
+    padding: 6px 12px;
   }
-  .checkpoint-box .query-item input {
-    flex: 1; padding: 6px 10px;
+  .feed-log .ts { color: var(--text-dim); font-size: 11px; margin-right: 8px; }
+  .feed-log.tool-call { background: var(--accent-light); color: var(--accent); }
+  .feed-log.tool-result { background: var(--green-light); color: #1a7a34; }
+  .feed-log.nemotron-text, .feed-log.claude-text { background: var(--purple-light); color: var(--purple); }
+  .feed-log.error-entry { background: var(--red-light); color: var(--red); font-weight: 600; }
+  .feed-log.info-entry { background: var(--surface2); color: var(--text); }
+  .feed-log.api-call { background: var(--orange-light); color: var(--orange); }
+  .feed-log.api-response { background: var(--orange-light); color: var(--orange); }
+
+  /* Full-width content cards */
+  .feed-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow);
+  }
+  .feed-card h3 {
+    font-family: var(--font);
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    color: var(--text);
+  }
+  .feed-card pre {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.4;
+    white-space: pre-wrap;
+    color: var(--text);
+    background: var(--surface2);
+    padding: 12px;
+    border-radius: 6px;
+    overflow-x: auto;
+  }
+  .feed-card .nemotron-reasoning, .feed-card .claude-reasoning {
+    font-family: var(--font);
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--text);
+    font-style: italic;
+    border-left: 3px solid var(--purple);
+    padding: 8px 16px;
+    background: var(--purple-light);
+    border-radius: 0 6px 6px 0;
+    margin-bottom: 12px;
+  }
+  .feed-card .card-label {
+    font-family: var(--font);
+    font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 1px;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+  }
+
+  /* Checkpoint cards */
+  .feed-card.checkpoint {
+    border-color: var(--yellow);
+    border-width: 2px;
+  }
+  .feed-card.checkpoint h3::before {
+    content: '\u23F8  ';
+    color: var(--yellow);
+  }
+
+  /* Query card */
+  .query-row {
+    display: flex; align-items: center; gap: 8px;
+    margin: 6px 0;
+  }
+  .query-row .qnum {
+    font-size: 12px; color: var(--text-dim); width: 20px; text-align: right; flex-shrink: 0;
+  }
+  .query-row input {
+    flex: 1; padding: 8px 12px;
     border: 1px solid var(--border); border-radius: 6px;
     font-family: var(--font-mono); font-size: 13px;
-    background: white; color: var(--text);
+    background: var(--surface2); color: var(--text);
   }
-  .checkpoint-actions { display: flex; gap: 8px; margin-top: 12px; }
+  .query-row input:focus { outline: none; border-color: var(--accent); }
+  .query-row .remove-btn {
+    width: 28px; height: 28px; border: none; border-radius: 6px;
+    background: var(--red-light); color: var(--red); cursor: pointer;
+    font-size: 16px; display: flex; align-items: center; justify-content: center;
+  }
+  .add-query-btn {
+    font-size: 12px; color: var(--accent); background: none; border: none;
+    cursor: pointer; padding: 4px 0; font-family: var(--font); font-weight: 600;
+  }
+  .checkpoint-actions {
+    display: flex; gap: 8px; margin-top: 14px;
+  }
 
-  .win-table {
+  /* Metrics table in cards */
+  .metrics-table {
     width: 100%; border-collapse: collapse;
     font-family: var(--font-mono); font-size: 13px;
   }
-  .win-table th {
+  .metrics-table th {
     background: var(--surface2); border: 1px solid var(--border);
-    padding: 6px 8px; text-align: right; font-weight: 700; color: var(--accent);
+    padding: 6px 10px; text-align: right; font-weight: 700; color: var(--accent);
   }
-  .win-table th:first-child { text-align: left; }
-  .win-table td {
-    border: 1px solid var(--border); padding: 6px 8px; text-align: right;
+  .metrics-table th:first-child { text-align: left; }
+  .metrics-table td {
+    border: 1px solid var(--border); padding: 6px 10px; text-align: right;
   }
-  .win-table td:first-child { text-align: left; font-weight: 600; }
+  .metrics-table td:first-child { text-align: left; font-weight: 600; }
 
-  /* ---- Papers ---- */
+  /* Paper list */
   .paper-item {
     padding: 8px 0; border-bottom: 1px solid var(--border);
-    font-size: 12px; line-height: 1.4;
+    font-family: var(--font); font-size: 13px; line-height: 1.4;
   }
   .paper-item:last-child { border-bottom: none; }
-  .paper-item .paper-title { font-weight: 500; }
-  .paper-item .paper-meta { color: var(--text-dim); margin-top: 2px; }
+  .paper-item .p-title { font-weight: 500; }
+  .paper-item .p-meta { color: var(--text-dim); font-size: 12px; margin-top: 2px; }
 
-  /* ---- Scrollbar ---- */
+  /* Scrollbar */
   ::-webkit-scrollbar { width: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
-  ::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+  ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #aaa; }
+
+  /* ---- Progress bar: sticky at bottom of main area ---- */
+  .progress-bar-sticky {
+    position: sticky;
+    bottom: 0;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding: 12px 0 16px;
+    margin: 0 -32px;
+    padding-left: 32px;
+    padding-right: 32px;
+    z-index: 10;
+  }
+
+  /* ---- Sidebar controls ---- */
+  .sidebar-controls {
+    padding: 14px 20px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 8px;
+    margin-top: auto;
+  }
+  .ctrl-btn {
+    flex: 1;
+    padding: 8px 0;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface2);
+    color: var(--text-dim);
+    font-family: var(--font);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+  }
+  .ctrl-btn:hover { background: var(--border); color: var(--text); }
+  .ctrl-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .ctrl-btn:disabled:hover { background: var(--surface2); color: var(--text-dim); }
+  .ctrl-btn.stop { border-color: var(--red); color: var(--red); }
+  .ctrl-btn.stop:hover { background: var(--red-light); }
+  .ctrl-btn.pause { border-color: var(--yellow); color: #996600; }
+  .ctrl-btn.pause:hover { background: var(--yellow-light); }
+  .ctrl-btn.restart { border-color: var(--green); color: var(--green); }
+  .ctrl-btn.restart:hover { background: var(--green-light); }
+
+  @media (max-width: 700px) {
+    .sidebar { width: 220px; }
+    .main-area { padding: 16px; }
+  }
 </style>
 </head>
 <body>
 
-<div class="header">
-  <h1><span>AXIS</span> Agentic Cockpit</h1>
-  <div class="status" id="globalStatus">
-    <div class="status-dot" id="statusDot"></div>
-    <span id="statusText">Connecting...</span>
-  </div>
-</div>
+<div class="layout">
 
-<div class="main">
-  <!-- Left: Pipeline -->
-  <div class="panel" id="leftPanel">
-    <div class="panel-title">Pipeline</div>
-    <div id="steps"></div>
-    <div id="metricsCards"></div>
-    <div class="results-group" id="pipelineResults">
-      <div class="panel-title">Results</div>
-      <div id="pipelineResultsContent"></div>
+  <!-- ======== SIDEBAR ======== -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <h1><span>AXIS</span> Agentic</h1>
+      <div class="sidebar-status">
+        <div class="status-dot" id="statusDot"></div>
+        <span id="statusText">Connecting...</span>
+      </div>
     </div>
-  </div>
 
-  <!-- Center: Log + Progress -->
-  <div class="center-col">
-    <div class="panel-title" style="padding:16px 20px 0;">Agent Log</div>
-    <div class="log-area" id="centerPanel">
-      <div id="log"></div>
+    <div class="sidebar-title">Pipeline</div>
+    <div class="steps" id="steps"></div>
+
+    <div class="sidebar-controls">
+      <button class="ctrl-btn stop" id="stopBtn" disabled onclick="stopPipeline()">&#9632; Stop</button>
+      <button class="ctrl-btn pause" id="pauseBtn" disabled onclick="pausePipeline()">&#10074;&#10074; Pause</button>
+      <button class="ctrl-btn restart" id="restartBtn" disabled onclick="restartPipeline()">&#8635; Restart</button>
     </div>
-    <div class="progress-bar-area">
+  </aside>
+
+  <!-- ======== MAIN ======== -->
+  <main class="main-area">
+
+    <!-- Setup form (shown initially) -->
+    <div id="setupView">
+      <h2 style="font-size:22px; font-weight:700; margin-bottom:24px;">New Evaluation</h2>
+
+      <div class="setup-section">
+        <label>Model</label>
+        <ul class="option-list" id="modelList"></ul>
+        <div class="setup-hint">For a custom model, enter the path to a folder containing model.safetensors</div>
+        <input type="text" class="setup-input" id="customModelPath" placeholder="/path/to/model/">
+      </div>
+
+      <div class="setup-section">
+        <label>Datasets (click to toggle)</label>
+        <ul class="option-list" id="datasetList"></ul>
+        <div class="setup-hint">Select multiple for comparative evaluation. Enter a path for custom datasets with manifest.csv</div>
+        <input type="text" class="setup-input" id="customDatasetPath" placeholder="/path/to/dataset/">
+      </div>
+
+      <button class="btn btn-primary" id="startBtn" disabled style="width:100%; margin-top:8px;">Start Evaluation</button>
+    </div>
+
+    <!-- Feed (shown during/after pipeline) -->
+    <div id="feed"></div>
+
+    <!-- Progress bar: sticky at bottom of main area -->
+    <div class="progress-bar-sticky" id="progressBar" style="display:none;">
       <div class="progress-label">
         <span id="progressLabel">Idle</span>
         <span id="progressPct"></span>
@@ -354,56 +492,31 @@
         <div class="progress-fill" id="progressFill"></div>
       </div>
     </div>
-  </div>
 
-  <!-- Right: Setup / Results -->
-  <div class="panel" id="rightPanel">
-    <div id="setupView">
-      <div class="panel-title">Setup</div>
-      <div class="setup-section">
-        <label>Model</label>
-        <ul class="option-list" id="modelList"></ul>
-        <div class="setup-hint">
-          For a new model, drag &amp; drop or type path to folder containing model.safetensors
-        </div>
-        <input type="text" class="setup-input" id="customModelPath" placeholder="/path/to/model/">
-      </div>
-      <div class="setup-section">
-        <label>Datasets (click to toggle)</label>
-        <ul class="option-list" id="datasetList"></ul>
-        <div class="setup-hint">
-          Select multiple datasets for comparative evaluation.<br>
-          For a new dataset, type path to folder containing manifest.csv
-        </div>
-        <input type="text" class="setup-input" id="customDatasetPath" placeholder="/path/to/dataset/">
-      </div>
-      <div style="margin-top:20px;">
-        <button class="btn btn-primary" id="startBtn" disabled style="width:100%;">Start Evaluation</button>
-      </div>
-    </div>
-    <div id="resultsView" style="display:none;">
-      <div class="panel-title">Details</div>
-      <div id="resultsContent"></div>
-    </div>
-  </div>
+  </main>
 </div>
 
 <script>
-const $ = (sel) => document.querySelector(sel);
+const $ = s => document.querySelector(s);
 
 let selectedModel = 0;
 let selectedDatasets = new Set([0]);
 let pipelineRunning = false;
 let configData = null;
 let startTime = null;
+let _queryCount = 0;
+
+// Map step id -> milestone container element
+let stepMilestones = {};
+// Track current evaluator index for milestones
+let currentEvalIndex = 0;
 
 // ------------------------------------------------------------------
 // Setup
 // ------------------------------------------------------------------
 
 async function loadConfig() {
-  const resp = await fetch('/config');
-  configData = await resp.json();
+  configData = await (await fetch('/config')).json();
   renderSetup();
 }
 
@@ -412,17 +525,16 @@ function renderSetup() {
   ml.innerHTML = '';
   configData.models.forEach((m, i) => {
     const li = document.createElement('li');
-    li.innerHTML = `<div>${m.name}</div><div class="desc">${m.description}</div>`;
+    li.innerHTML = `<div class="name">${m.name}</div><div class="desc">${m.description}</div>`;
     if (i === selectedModel) li.classList.add('selected');
     li.onclick = () => { selectedModel = i; renderSetup(); };
     ml.appendChild(li);
   });
-
   const dl = $('#datasetList');
   dl.innerHTML = '';
   configData.datasets.forEach((d, i) => {
     const li = document.createElement('li');
-    li.innerHTML = `<div>${d.name}</div><div class="desc">${d.description}</div>`;
+    li.innerHTML = `<div class="name">${d.name}</div><div class="desc">${d.description}</div>`;
     if (selectedDatasets.has(i)) li.classList.add('selected');
     li.onclick = () => {
       if (selectedDatasets.has(i)) selectedDatasets.delete(i);
@@ -432,7 +544,6 @@ function renderSetup() {
     };
     dl.appendChild(li);
   });
-
   $('#startBtn').disabled = false;
 }
 
@@ -442,7 +553,6 @@ $('#startBtn').addEventListener('click', async () => {
   startTime = Date.now();
   $('#startBtn').disabled = true;
   $('#startBtn').textContent = 'Running...';
-
   const resp = await fetch('/start', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
@@ -464,7 +574,7 @@ $('#startBtn').addEventListener('click', async () => {
 function connectSSE() {
   const es = new EventSource('/events');
   es.onopen = () => setStatus('Ready', 'connected');
-  es.onmessage = (e) => handleEvent(JSON.parse(e.data));
+  es.onmessage = e => handleEvent(JSON.parse(e.data));
   es.onerror = () => setStatus('Disconnected', 'error');
 }
 
@@ -484,20 +594,26 @@ function handleEvent(evt) {
     case 'pipeline_start':
       setStatus('Running', 'running');
       $('#setupView').style.display = 'none';
-      $('#resultsView').style.display = 'block';
+      $('#feed').className = 'active';
+      $('#feed').style.display = 'block';
+      $('#progressBar').style.display = 'block';
+      enableControls();
       setProgress(0, 'Initializing...');
-      dynamicSteps = [{ id: 'setup', label: 'Setup', status: 'done' }];
+      dynamicSteps = [{ id: 'setup', label: 'Setup', status: 'done', milestones: [] }];
       (evt.datasets || []).forEach((ds, i) => {
-        dynamicSteps.push({ id: `eval_${i}`, label: `Evaluator: ${ds}`, status: 'pending' });
+        dynamicSteps.push({ id: `eval_${i}`, label: `Evaluator: ${ds}`, status: 'pending', milestones: [] });
       });
-      dynamicSteps.push({ id: 'checkpoint', label: 'Checkpoint', status: 'pending' });
-      dynamicSteps.push({ id: 'analyst', label: 'Analyst', status: 'pending' });
+      dynamicSteps.push({ id: 'checkpoint', label: 'Metrics Checkpoint', status: 'pending', milestones: [] });
+      dynamicSteps.push({ id: 'analyst', label: 'Analyst', status: 'pending', milestones: [] });
+      dynamicSteps.push({ id: 'queries', label: 'PubMed Search', status: 'pending', milestones: [] });
+      dynamicSteps.push({ id: 'results', label: 'Results', status: 'pending', milestones: [] });
       renderSteps();
-      addLog('info-entry', `Coordinator started. Model: ${evt.model}, datasets: ${(evt.datasets||[]).join(', ')}`);
+      addLog('info-entry', `Pipeline started \u2014 ${evt.model} on ${(evt.datasets||[]).join(', ')}`);
       break;
 
     case 'evaluator_start':
-      setStepStatus(`eval_${evt.eval_index||0}`, 'running', evt.dataset);
+      currentEvalIndex = evt.eval_index || 0;
+      setStepStatus(`eval_${currentEvalIndex}`, 'running', evt.dataset);
       setProgress(0, `Evaluator: ${evt.dataset}`);
       addLog('info-entry', `Evaluator started for ${evt.dataset}`);
       break;
@@ -505,13 +621,16 @@ function handleEvent(evt) {
     case 'evaluator_done':
       setStepStatus(`eval_${evt.eval_index||0}`, 'done');
       setProgress(100, `${evt.dataset}: Complete`);
-      if (evt.metrics) renderMetricsCard(evt.dataset, evt.metrics);
       break;
 
     case 'evaluator_error':
       setStepStatus(`eval_${evt.eval_index||0}`, 'error');
       setProgress(0, `Error: ${evt.dataset}`);
       addLog('error-entry', `Evaluator failed on ${evt.dataset}: ${evt.error}`);
+      break;
+
+    case 'milestone':
+      addMilestone(evt.agent === 'evaluator' ? `eval_${currentEvalIndex}` : 'analyst', evt.text);
       break;
 
     case 'api_call':
@@ -526,7 +645,7 @@ function handleEvent(evt) {
       break;
 
     case 'tool_call':
-      addLog('tool-call', `Nemotron calls ${evt.fn_name}.py (${evt.summary || ''})`);
+      addLog('tool-call', `Claude calls ${evt.fn_name}.py (${evt.summary || ''})`);
       if (evt.fn_name === 'run_inference') setProgress(0, 'Running inference...');
       else if (evt.fn_name === 'search_literature') setProgress(-1, 'Searching PubMed...');
       else setProgress(-1, evt.fn_name.replace(/_/g, ' ') + '...');
@@ -538,23 +657,32 @@ function handleEvent(evt) {
 
     case 'inference_progress':
       { const pct = Math.round((evt.current / evt.total) * 100);
-        setProgress(pct, `MedGemma inference: study ${evt.current} of ${evt.total}`);
+        setProgress(pct, `MedGemma inference: ${evt.current}/${evt.total}`);
         if (evt.current === 1 || evt.current === evt.total || evt.current % 10 === 0)
           addLog('info-entry', `Inference server (localhost:8321): ${evt.current}/${evt.total} studies`);
       }
       break;
 
     case 'tavily_search':
-      addLog('api-call', `Tavily API \u2192 PubMed search ${evt.query_index}/${evt.total_queries}: "${evt.query}"`);
+    case 'web_search':
+      addLog('api-call', `Web Search \u2192 PubMed "${evt.query}" (${evt.query_index}/${evt.total_queries})`);
       break;
 
     case 'tavily_result':
-      if (evt.error) addLog('error-entry', `Tavily \u2190 "${evt.query}": ${evt.error}`);
-      else addLog('api-response', `Tavily API \u2190 ${evt.hits} papers (${evt.elapsed_ms}ms)`);
+    case 'web_search_result':
+      if (evt.error) addLog('error-entry', `Web Search: ${evt.error}`);
+      else addLog('api-response', `Web Search \u2190 ${evt.hits} papers (${evt.elapsed_ms}ms)`);
       break;
 
     case 'nemotron_text':
-      addLog('nemotron-text', `Nemotron: ${truncate(evt.text || '', 400)}`);
+    case 'claude_text':
+      // Full text as a card, not truncated
+      addCard(card => {
+        const div = document.createElement('div');
+        div.className = 'claude-reasoning';
+        div.textContent = evt.text;
+        card.appendChild(div);
+      });
       break;
 
     case 'agent_complete':
@@ -568,20 +696,26 @@ function handleEvent(evt) {
       break;
 
     case 'ascii_results':
-      if (evt.table) addAsciiBlock('Metrics Summary', evt.table);
-      if (evt.confusion_matrices) addAsciiBlock('Confusion Matrices', evt.confusion_matrices);
-      if (evt.bar_chart) addAsciiBlock('Comparison Chart', evt.bar_chart);
+      addCard(card => {
+        const h = document.createElement('h3');
+        h.textContent = 'Results Summary';
+        card.appendChild(h);
+        if (evt.table) { const pre = document.createElement('pre'); pre.textContent = evt.table; card.appendChild(pre); }
+        if (evt.confusion_matrices) { const pre = document.createElement('pre'); pre.textContent = evt.confusion_matrices; card.appendChild(pre); }
+        if (evt.bar_chart) { const pre = document.createElement('pre'); pre.textContent = evt.bar_chart; card.appendChild(pre); }
+      });
       break;
 
     case 'checkpoint_matrix':
       setStepStatus('checkpoint', 'running');
       setProgress(-1, 'Awaiting approval...');
-      renderMatrixCheckpoint(evt.matrix);
+      renderMatrixCheckpointInline(evt.matrix);
       break;
 
     case 'checkpoint_queries':
-      setProgress(-1, 'Awaiting query approval...');
-      renderQueryCheckpoint(evt.queries, evt.reasoning);
+      setStepStatus('queries', 'running');
+      setProgress(-1, 'Awaiting approval...');
+      renderQueryCheckpointInline(evt.queries, evt.reasoning);
       break;
 
     case 'analyst_start':
@@ -592,30 +726,72 @@ function handleEvent(evt) {
 
     case 'analyst_done':
       setStepStatus('analyst', 'done');
+      setStepStatus('results', 'running');
       setProgress(100, 'Analysis complete');
       addLog('info-entry', 'Analyst agent finished');
-      if (evt.report_path) {
-        addPipelineResult(`Report: ${shortPath(evt.report_path)}`);
-        appendResult(`<div style="margin-top:6px; font-weight:600; color:var(--green);">Report: ${evt.report_path}</div>`);
+      if (evt.report_content) {
+        addCard(card => {
+          const h = document.createElement('h3');
+          h.textContent = 'Evaluation Report';
+          card.appendChild(h);
+          const pre = document.createElement('pre');
+          pre.textContent = evt.report_content;
+          card.appendChild(pre);
+        });
       }
       break;
 
     case 'literature_results':
-      renderPapers(evt.papers || []);
+      if ((evt.papers||[]).length) {
+        addCard(card => {
+          const h = document.createElement('h3');
+          h.textContent = 'Literature';
+          card.appendChild(h);
+          (evt.papers||[]).forEach(p => {
+            const item = document.createElement('div');
+            item.className = 'paper-item';
+            item.innerHTML = `<div class="p-title">${p.title||''}</div><div class="p-meta">${p.meta||''}</div>`;
+            card.appendChild(item);
+          });
+        });
+      }
       break;
 
     case 'figures_generated':
-      renderFigures(evt.figures || []);
-      (evt.figures || []).forEach(f => addPipelineResult(`Figure: ${f}`));
+      if ((evt.figures||[]).length) {
+        addCard(card => {
+          const h = document.createElement('h3');
+          h.textContent = 'Figures';
+          card.appendChild(h);
+          (evt.figures||[]).forEach(f => {
+            const d = document.createElement('div');
+            d.style.cssText = 'font-size:13px; padding:4px 0; color:var(--text-dim);';
+            d.textContent = f;
+            card.appendChild(d);
+          });
+        });
+      }
       break;
 
     case 'pipeline_complete':
       setStatus('Complete', 'connected');
+      setStepStatus('results', 'done');
+      addMilestone('results', `${evt.total_files||'?'} output files`);
       const elapsed = startTime ? Math.round((Date.now()-startTime)/1000) : '?';
+      addMilestone('results', `${elapsed}s total`);
       setProgress(100, `Complete \u2014 ${evt.total_files||'?'} files, ${elapsed}s`);
-      addLog('info-entry', `Pipeline finished. ${evt.total_files||'?'} output files. Total time: ${elapsed}s.`);
-      addPipelineResult(`${evt.total_files||'?'} files in ${evt.output_dir || 'results/'}`);
-      addPipelineResult(`Total time: ${elapsed}s`);
+      addCard(card => {
+        card.style.borderColor = 'var(--green)';
+        const h = document.createElement('h3');
+        h.textContent = 'Pipeline Complete';
+        h.style.color = 'var(--green)';
+        card.appendChild(h);
+        const p = document.createElement('div');
+        p.style.cssText = 'font-size:14px; font-family:var(--font);';
+        p.textContent = `${evt.total_files||'?'} output files in ${evt.output_dir||'results/'}. Total time: ${elapsed}s.`;
+        card.appendChild(p);
+      });
+      disableControls();
       pipelineRunning = false;
       break;
 
@@ -623,6 +799,7 @@ function handleEvent(evt) {
       setStatus('Error', 'error');
       setProgress(0, 'Error');
       addLog('error-entry', `Pipeline error: ${evt.error || 'Unknown'}`);
+      disableControls();
       pipelineRunning = false;
       break;
   }
@@ -631,6 +808,7 @@ function handleEvent(evt) {
 function shortModel(m) {
   if (!m) return '?';
   if (m.includes('nemotron')) return 'Nemotron 120B';
+  if (m.includes('claude')) return m.replace('claude-', 'Claude ').replace('-', ' ');
   return m.split('/').pop();
 }
 
@@ -641,14 +819,23 @@ function shortModel(m) {
 function renderSteps() {
   const el = $('#steps');
   el.innerHTML = '';
+  stepMilestones = {};
   dynamicSteps.forEach(s => {
     const st = s.status || 'pending';
     const icon = st==='done' ? '\u2713' : st==='error' ? '!' : st==='running' ? '\u25B6' : '';
     const div = document.createElement('div');
-    div.className = 'step';
+    div.className = `step step-${st}`;
+    div.id = `step-${s.id}`;
+
+    const msHtml = (s.milestones||[]).map(m => `<div class="milestone">${m}</div>`).join('');
+
     div.innerHTML = `
       <div class="step-dot ${st}">${icon}</div>
-      <div><div class="step-label">${s.label}</div><div class="step-detail" id="step-detail-${s.id}"></div></div>`;
+      <div class="step-content">
+        <div class="step-label">${s.label}</div>
+        <div class="step-detail" id="step-detail-${s.id}"></div>
+        <div class="step-milestones" id="step-ms-${s.id}">${msHtml}</div>
+      </div>`;
     el.appendChild(div);
   });
 }
@@ -657,24 +844,44 @@ function setStepStatus(id, status, detail) {
   const s = dynamicSteps.find(s => s.id === id);
   if (s) s.status = status;
   renderSteps();
-  if (detail) { const d = document.getElementById(`step-detail-${id}`); if(d) d.textContent = detail; }
+  if (detail) {
+    const d = document.getElementById(`step-detail-${id}`);
+    if (d) d.textContent = detail;
+  }
 }
 
-function addLog(cls, html) {
+function addMilestone(stepId, text) {
+  const s = dynamicSteps.find(s => s.id === stepId);
+  if (s) {
+    if (!s.milestones) s.milestones = [];
+    s.milestones.push(text);
+  }
+  // Append without full re-render
+  const container = document.getElementById(`step-ms-${stepId}`);
+  if (container) {
+    const div = document.createElement('div');
+    div.className = 'milestone';
+    div.textContent = text;
+    container.appendChild(div);
+  }
+}
+
+function addLog(cls, text) {
+  const feed = $('#feed');
   const div = document.createElement('div');
-  div.className = `log-entry ${cls}`;
+  div.className = `feed-entry feed-log ${cls}`;
   const ts = new Date().toLocaleTimeString('en-US',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
-  div.innerHTML = `<span class="ts">${ts}</span>${html}`;
-  $('#log').appendChild(div);
-  $('#centerPanel').scrollTop = $('#centerPanel').scrollHeight;
+  div.innerHTML = `<span class="ts">${ts}</span>${text}`;
+  feed.appendChild(div);
+  window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
 }
 
-function addAsciiBlock(title, text) {
-  const div = document.createElement('div');
-  div.className = 'log-entry ascii-block';
-  div.innerHTML = `<strong>${title}</strong>\n${text}`;
-  $('#log').appendChild(div);
-  $('#centerPanel').scrollTop = $('#centerPanel').scrollHeight;
+function addCard(buildFn) {
+  const card = document.createElement('div');
+  card.className = 'feed-entry feed-card';
+  buildFn(card);
+  $('#feed').appendChild(card);
+  window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
 }
 
 function setProgress(pct, label) {
@@ -691,205 +898,249 @@ function setProgress(pct, label) {
   }
 }
 
-function renderMetricsCard(dataset, metrics) {
-  const card = document.createElement('div');
-  card.className = 'metric-card';
-  const rows = ['mcc','sensitivity','specificity','precision','f1','accuracy']
-    .filter(k => metrics[k]!=null)
-    .map(k => `<div class="metric-row"><span class="label">${k.toUpperCase()}</span><span class="value">${metrics[k].toFixed(4)}</span></div>`)
-    .join('');
-  card.innerHTML = `<div class="card-title">${dataset} (n=${metrics.total_evaluated||'?'})</div>${rows}`;
-  $('#metricsCards').appendChild(card);
-}
+// ---- Matrix checkpoint inline ----
+function renderMatrixCheckpointInline(matrix) {
+  addCard(card => {
+    card.classList.add('checkpoint');
+    card.id = 'matrixCheckpoint';
+    const h = document.createElement('h3');
+    h.textContent = 'Checkpoint: Review Comparison Matrix';
+    card.appendChild(h);
 
-function addPipelineResult(text) {
-  const container = $('#pipelineResults');
-  container.style.display = 'block';
-  const div = document.createElement('div');
-  div.className = 'result-line';
-  div.textContent = text;
-  $('#pipelineResultsContent').appendChild(div);
-}
+    const evals = matrix.evaluations || [];
+    const datasets = evals.map(e => e.dataset_name);
 
-function shortPath(p) {
-  if (!p) return '';
-  const parts = p.replace(/\\/g,'/').split('/');
-  return parts.length > 3 ? parts.slice(-3).join('/') : p;
-}
+    const table = document.createElement('table');
+    table.className = 'metrics-table';
+    let headerHtml = '<tr><th>Metric</th>';
+    datasets.forEach(d => { headerHtml += `<th>${d}</th>`; });
+    headerHtml += '</tr>';
 
-function truncate(text, max) {
-  if (!text) return '';
-  const clean = text.replace(/\n/g,' ').trim();
-  return clean.length > max ? clean.slice(0,max-3)+'...' : clean;
-}
+    let bodyHtml = '';
+    ['mcc','sensitivity','specificity','precision','f1'].forEach(m => {
+      bodyHtml += `<tr><td>${m.toUpperCase()}</td>`;
+      evals.forEach(ev => {
+        const v = ev.metrics?.[m];
+        bodyHtml += `<td>${v != null ? v.toFixed(4) : '\u2014'}</td>`;
+      });
+      bodyHtml += '</tr>';
+    });
+    table.innerHTML = headerHtml + bodyHtml;
+    card.appendChild(table);
 
-function renderMatrixCheckpoint(matrix) {
-  const rc = $('#resultsContent');
-  const evals = matrix.evaluations || [];
-  const datasets = evals.map(e => e.dataset_name);
-  let html = '<div class="checkpoint-box"><h3>Review Comparison Matrix</h3>';
-  html += '<table class="win-table"><tr><th>Metric</th>';
-  datasets.forEach(d => { html += `<th>${d}</th>`; });
-  html += '</tr>';
-  ['mcc','sensitivity','specificity','precision','f1'].forEach(m => {
-    html += `<tr><td>${m.toUpperCase()}</td>`;
-    evals.forEach(ev => { const v=ev.metrics?.[m]; html += `<td>${v!=null?v.toFixed(4):'\u2014'}</td>`; });
-    html += '</tr>';
+    const btns = document.createElement('div');
+    btns.className = 'checkpoint-actions';
+    const approveBtn = document.createElement('button');
+    approveBtn.className = 'btn btn-green';
+    approveBtn.textContent = 'Approve';
+    approveBtn.onclick = async () => {
+      await fetch('/approve/matrix',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'approve'})});
+      setStepStatus('checkpoint','done');
+      setProgress(100,'Matrix approved');
+      card.classList.remove('checkpoint');
+      btns.innerHTML = '<div style="color:var(--green);font-weight:600;">Approved</div>';
+    };
+    const abortBtn = document.createElement('button');
+    abortBtn.className = 'btn btn-red';
+    abortBtn.textContent = 'Abort';
+    abortBtn.onclick = async () => {
+      await fetch('/approve/matrix',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'abort'})});
+      setStepStatus('checkpoint','error');
+      card.classList.remove('checkpoint');
+      btns.innerHTML = '<div style="color:var(--red);font-weight:600;">Aborted</div>';
+    };
+    btns.appendChild(approveBtn);
+    btns.appendChild(abortBtn);
+    card.appendChild(btns);
   });
-  html += '</table><div class="checkpoint-actions">';
-  html += '<button class="btn btn-green" onclick="approveMatrix()">Approve</button>';
-  html += '<button class="btn btn-red" onclick="abortMatrix()">Abort</button>';
-  html += '</div></div>';
-  rc.innerHTML = html;
 }
 
-async function approveMatrix() {
-  await fetch('/approve/matrix',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'approve'})});
-  setStepStatus('checkpoint','done');
-  setProgress(100,'Matrix approved');
-  $('#resultsContent').innerHTML = '<div style="color:var(--green);font-weight:600;">Matrix approved.</div>';
-}
+// ---- Query checkpoint inline with edit/add/remove ----
+function renderQueryCheckpointInline(queries, reasoning) {
+  addCard(card => {
+    card.classList.add('checkpoint');
+    card.id = 'queryCheckpoint';
 
-async function abortMatrix() {
-  await fetch('/approve/matrix',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'abort'})});
-  setStepStatus('checkpoint','error');
-  setProgress(0,'Aborted');
-}
+    const h = document.createElement('h3');
+    h.textContent = 'Checkpoint: Literature Search';
+    card.appendChild(h);
 
-let _queryCheckpointCount = 0;
+    // Show Claude reasoning
+    if (reasoning) {
+      const r = document.createElement('div');
+      r.className = 'claude-reasoning';
+      r.textContent = reasoning;
+      card.appendChild(r);
+    }
 
-function renderQueryCheckpoint(queries, reasoning) {
-  const rc = $('#resultsContent');
-  _queryCheckpointCount = (queries || []).length;
+    const label = document.createElement('div');
+    label.className = 'card-label';
+    label.textContent = 'Proposed PubMed queries';
+    card.appendChild(label);
 
-  // Build checkpoint as a document fragment — no innerHTML +=
-  const wrapper = document.createElement('div');
-  wrapper.id = 'queryCheckpointWrapper';
+    const desc = document.createElement('div');
+    desc.style.cssText = 'font-family:var(--font); font-size:13px; color:var(--text-dim); margin-bottom:10px;';
+    desc.textContent = 'Edit, add, or remove queries before searching. Queries are scoped to pubmed.ncbi.nlm.nih.gov.';
+    card.appendChild(desc);
 
-  if (reasoning) {
-    const reasonDiv = document.createElement('div');
-    reasonDiv.style.cssText = 'font-size:13px;color:var(--purple);margin:8px 0;font-style:italic;line-height:1.5;';
-    reasonDiv.textContent = reasoning;
-    wrapper.appendChild(reasonDiv);
-  }
+    const queryContainer = document.createElement('div');
+    queryContainer.id = 'queryContainer';
 
-  const box = document.createElement('div');
-  box.className = 'checkpoint-box';
-  box.innerHTML = '<h3>PubMed Search Queries</h3><div style="font-size:12px;color:var(--text-dim);margin-bottom:8px;">Edit queries below, then click Approve to search.</div>';
+    (queries || []).forEach((q, i) => {
+      queryContainer.appendChild(makeQueryRow(i, q));
+    });
+    _queryCount = (queries || []).length;
+    card.appendChild(queryContainer);
 
-  (queries || []).forEach((q, i) => {
-    const row = document.createElement('div');
-    row.className = 'query-item';
-    const span = document.createElement('span');
-    span.style.cssText = 'color:var(--text-dim);width:18px;';
-    span.textContent = `${i + 1}.`;
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.id = `query_${i}`;
-    input.value = q;
-    row.appendChild(span);
-    row.appendChild(input);
-    box.appendChild(row);
+    // Add query button
+    const addBtn = document.createElement('button');
+    addBtn.className = 'add-query-btn';
+    addBtn.textContent = '+ Add query';
+    addBtn.onclick = () => {
+      queryContainer.appendChild(makeQueryRow(_queryCount, ''));
+      _queryCount++;
+    };
+    card.appendChild(addBtn);
+
+    // Action buttons
+    const btns = document.createElement('div');
+    btns.className = 'checkpoint-actions';
+
+    const approveBtn = document.createElement('button');
+    approveBtn.className = 'btn btn-green';
+    approveBtn.textContent = 'Search PubMed';
+    approveBtn.onclick = async () => {
+      const qs = collectQueries();
+      card.classList.remove('checkpoint');
+      btns.innerHTML = `<div style="color:var(--green);font-weight:600;">Searching ${qs.length} queries...</div>`;
+      setStepStatus('queries', 'done');
+      addMilestone('queries', `${qs.length} queries approved`);
+      setProgress(-1, 'Searching PubMed...');
+      await fetch('/approve/queries',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'approve',queries:qs})});
+    };
+
+    const skipBtn = document.createElement('button');
+    skipBtn.className = 'btn btn-dim';
+    skipBtn.textContent = 'Skip';
+    skipBtn.onclick = async () => {
+      card.classList.remove('checkpoint');
+      btns.innerHTML = '<div style="color:var(--text-dim);font-weight:600;">Skipped</div>';
+      setStepStatus('queries', 'done');
+      addMilestone('queries', 'Skipped');
+      setProgress(-1, 'Skipped literature search');
+      await fetch('/approve/queries',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'skip',queries:[]})});
+    };
+
+    btns.appendChild(approveBtn);
+    btns.appendChild(skipBtn);
+    card.appendChild(btns);
   });
-
-  const btns = document.createElement('div');
-  btns.className = 'checkpoint-actions';
-  const approveBtn = document.createElement('button');
-  approveBtn.className = 'btn btn-green';
-  approveBtn.textContent = 'Approve';
-  approveBtn.onclick = () => approveQueries(_queryCheckpointCount);
-  const skipBtn = document.createElement('button');
-  skipBtn.className = 'btn btn-dim';
-  skipBtn.textContent = 'Skip';
-  skipBtn.onclick = skipQueries;
-  btns.appendChild(approveBtn);
-  btns.appendChild(skipBtn);
-  box.appendChild(btns);
-
-  wrapper.appendChild(box);
-  rc.appendChild(wrapper);
 }
 
-async function approveQueries(count) {
-  // Read values BEFORE clearing DOM
-  const queries = [];
-  for (let i = 0; i < count; i++) {
-    const inp = document.getElementById(`query_${i}`);
-    if (inp && inp.value.trim()) queries.push(inp.value.trim());
+function makeQueryRow(index, value) {
+  const row = document.createElement('div');
+  row.className = 'query-row';
+  const num = document.createElement('span');
+  num.className = 'qnum';
+  num.textContent = `${index + 1}.`;
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'query-input';
+  input.value = value;
+  input.placeholder = 'e.g. musculoskeletal AI sensitivity';
+  const removeBtn = document.createElement('button');
+  removeBtn.className = 'remove-btn';
+  removeBtn.innerHTML = '&times;';
+  removeBtn.onclick = () => row.remove();
+  row.appendChild(num);
+  row.appendChild(input);
+  row.appendChild(removeBtn);
+  return row;
+}
+
+function collectQueries() {
+  const inputs = document.querySelectorAll('#queryContainer .query-input');
+  const qs = [];
+  inputs.forEach(inp => { if (inp.value.trim()) qs.push(inp.value.trim()); });
+  return qs;
+}
+
+// ------------------------------------------------------------------
+// Pipeline controls
+// ------------------------------------------------------------------
+
+let isPaused = false;
+
+function enableControls() {
+  $('#stopBtn').disabled = false;
+  $('#pauseBtn').disabled = false;
+  $('#restartBtn').disabled = false;
+}
+
+function disableControls() {
+  $('#stopBtn').disabled = true;
+  $('#pauseBtn').disabled = true;
+  $('#restartBtn').disabled = true;
+}
+
+async function stopPipeline() {
+  await fetch('/control/stop', { method: 'POST' });
+  addLog('error-entry', 'Stop requested');
+  disableControls();
+}
+
+async function pausePipeline() {
+  if (!isPaused) {
+    await fetch('/control/pause', { method: 'POST' });
+    isPaused = true;
+    $('#pauseBtn').innerHTML = '&#9654; Resume';
+    addLog('info-entry', 'Pipeline paused');
+    setStatus('Paused', 'error');
+  } else {
+    await fetch('/control/resume', { method: 'POST' });
+    isPaused = false;
+    $('#pauseBtn').innerHTML = '&#10074;&#10074; Pause';
+    addLog('info-entry', 'Pipeline resumed');
+    setStatus('Running', 'running');
   }
+}
 
-  // Clear checkpoint UI immediately
-  const wrapper = document.getElementById('queryCheckpointWrapper');
-  if (wrapper) wrapper.remove();
-  appendResult('<div style="color:var(--green);font-weight:600;margin:8px 0;">Queries approved. Searching PubMed...</div>');
-  setProgress(-1, 'Searching PubMed...');
+async function restartPipeline() {
+  await fetch('/control/restart', { method: 'POST' });
+  addLog('info-entry', 'Restarting pipeline...');
+  isPaused = false;
+  $('#pauseBtn').innerHTML = '&#10074;&#10074; Pause';
 
-  await fetch('/approve/queries', {
+  // Clear feed and reset steps
+  $('#feed').innerHTML = '';
+  dynamicSteps.forEach(s => { s.status = 'pending'; s.milestones = []; });
+  renderSteps();
+  setProgress(0, 'Restarting...');
+
+  // Re-trigger start with same config
+  const resp = await fetch('/start', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({action: 'approve', queries}),
+    body: JSON.stringify({ model: selectedModel, datasets: [...selectedDatasets].sort() }),
   });
-}
-
-async function skipQueries() {
-  // Clear checkpoint UI immediately
-  const wrapper = document.getElementById('queryCheckpointWrapper');
-  if (wrapper) wrapper.remove();
-  appendResult('<div style="color:var(--text-dim);font-weight:600;margin:8px 0;">Literature search skipped.</div>');
-  setProgress(-1, 'Skipped literature search');
-
-  await fetch('/approve/queries', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({action: 'skip', queries: []}),
-  });
-}
-
-function renderPapers(papers) {
-  if (!papers.length) return;
-  const container = document.createElement('div');
-  container.style.marginTop = '12px';
-  const title = document.createElement('div');
-  title.className = 'panel-title';
-  title.textContent = 'Literature';
-  container.appendChild(title);
-  papers.forEach(p => {
-    const item = document.createElement('div');
-    item.className = 'paper-item';
-    item.innerHTML = `<div class="paper-title">${p.title||''}</div><div class="paper-meta">${p.meta||''}</div>`;
-    container.appendChild(item);
-  });
-  $('#resultsContent').appendChild(container);
-}
-
-function renderFigures(figures) {
-  if (!figures.length) return;
-  const container = document.createElement('div');
-  container.style.marginTop = '12px';
-  const title = document.createElement('div');
-  title.className = 'panel-title';
-  title.textContent = 'Figures';
-  container.appendChild(title);
-  figures.forEach(f => {
-    const item = document.createElement('div');
-    item.style.cssText = 'font-size:13px;padding:3px 0;color:var(--text-dim);';
-    item.textContent = f;
-    container.appendChild(item);
-  });
-  $('#resultsContent').appendChild(container);
-}
-
-function appendResult(html) {
-  const div = document.createElement('div');
-  div.innerHTML = html;
-  while (div.firstChild) {
-    $('#resultsContent').appendChild(div.firstChild);
-  }
+  startTime = Date.now();
 }
 
 // ------------------------------------------------------------------
 // Init
 // ------------------------------------------------------------------
+
+// Show default pipeline steps immediately
+dynamicSteps = [
+  { id: 'setup', label: 'Setup', status: 'pending', milestones: [] },
+  { id: 'eval_0', label: 'Evaluator', status: 'pending', milestones: [] },
+  { id: 'checkpoint', label: 'Metrics Checkpoint', status: 'pending', milestones: [] },
+  { id: 'analyst', label: 'Analyst', status: 'pending', milestones: [] },
+  { id: 'queries', label: 'PubMed Search', status: 'pending', milestones: [] },
+  { id: 'results', label: 'Results', status: 'pending', milestones: [] },
+];
+renderSteps();
+
 loadConfig();
 connectSSE();
 </script>
