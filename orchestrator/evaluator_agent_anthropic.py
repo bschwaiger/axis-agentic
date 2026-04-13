@@ -25,6 +25,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from tools.evaluator_impl import execute_tool  # noqa: E402
+from orchestrator.api_retry import call_with_retry  # noqa: E402
 from orchestrator.formatting_anthropic import (  # noqa: E402
     format_tool_call, format_tool_result, format_claude_text, format_agent_complete,
     _extract_key_args, _summarize_result,
@@ -127,7 +128,8 @@ def run_agent(task: dict, verbose: bool = False) -> dict:
                      turn=turn, agent="evaluator")
 
         t0 = _time.monotonic()
-        response = client.messages.create(
+        response = call_with_retry(
+            client,
             model=ANTHROPIC_MODEL,
             max_tokens=4096,
             system=SYSTEM_PROMPT,

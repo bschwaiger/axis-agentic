@@ -65,7 +65,7 @@ def write_report(
 # search_literature (Anthropic web search replacement)
 # ------------------------------------------------------------------
 
-def search_literature(queries: list[str], max_results_per_query: int = 3) -> dict:
+def search_literature(queries: list[str], max_results_per_query: int = 3, output_dir: str = "") -> dict:
     """Search PubMed via Anthropic web search tool.
 
     Uses Claude with the web_search_20250305 server tool to search PubMed.
@@ -129,15 +129,21 @@ def search_literature(queries: list[str], max_results_per_query: int = 3) -> dic
         "searches": all_results,
     }
 
-    # Write next to the comparison matrix if one exists
+    # Determine output path: prefer explicit output_dir, then find from matrix
     from datetime import datetime as _dt
     import glob
-    fallback = PROJECT_ROOT / "results" / f"literature_{_dt.now().strftime('%y%m%d%H%M')}.json"
-    matrices = sorted(glob.glob(str(PROJECT_ROOT / "results" / "*" / "comparison_matrix.json")))
-    if matrices:
-        out = Path(matrices[-1]).parent / "literature_results.json"
+    if output_dir:
+        out_d = Path(output_dir)
+        if not out_d.is_absolute():
+            out_d = PROJECT_ROOT / out_d
+        out = out_d / "literature_results.json"
     else:
-        out = fallback
+        # Fallback: find the most recent comparison_matrix.json
+        matrices = sorted(glob.glob(str(PROJECT_ROOT / "results" / "*" / "comparison_matrix.json")))
+        if matrices:
+            out = Path(matrices[-1]).parent / "literature_results.json"
+        else:
+            out = PROJECT_ROOT / "results" / f"literature_{_dt.now().strftime('%y%m%d%H%M')}.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     with open(out, "w") as f:
         json.dump(result, f, indent=2)

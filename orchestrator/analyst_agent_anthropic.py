@@ -30,6 +30,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from tools.analyst_impl_anthropic import execute_tool  # noqa: E402
+from orchestrator.api_retry import call_with_retry  # noqa: E402
 from orchestrator.formatting_anthropic import (  # noqa: E402
     format_tool_call, format_tool_result, format_claude_text,
     format_agent_complete, format_checkpoint, format_literature_results,
@@ -242,7 +243,8 @@ def run_agent(matrix_path: str, task: dict, verbose: bool = False) -> dict:
                      turn=turn, agent="analyst")
 
         t0 = _time.monotonic()
-        response = client.messages.create(
+        response = call_with_retry(
+            client,
             model=ANTHROPIC_MODEL,
             max_tokens=4096,
             system=SYSTEM_PROMPT,
@@ -354,7 +356,7 @@ def run_agent(matrix_path: str, task: dict, verbose: bool = False) -> dict:
                             f"The human has approved the following search queries:\n"
                             + "\n".join(f"{i+1}. {q}" for i, q in enumerate(approved_queries))
                             + f"\n\nCall these tools in order:\n"
-                            f"1. search_literature with queries={json.dumps(approved_queries)}\n"
+                            f"1. search_literature with queries={json.dumps(approved_queries)}, output_dir=\"{output_dir}\"\n"
                             f"2. generate_figures with matrix_path=\"{matrix_path}\", output_dir=\"{output_dir}\"\n"
                             f"3. write_report with matrix_path=\"{matrix_path}\", "
                             f"comparison_path=\"{comparison_path}\", "
@@ -394,8 +396,10 @@ def run_agent(matrix_path: str, task: dict, verbose: bool = False) -> dict:
                     })
                     continue
 
-        # Final stop
-        if stop_reason == "end_turn" and checkpoint_done:
+        # Final stop: only break if checkpoint is done, no tool calls in this turn,
+        # and Claude is just talking (not about to call more tools)
+        has_tool_calls = any(b.type == "tool_use" for b in response.content)
+        if stop_reason == "end_turn" and checkpoint_done and not has_tool_calls:
             for block in response.content:
                 if block.type == "text" and block.text:
                     print(format_claude_text(block.text))

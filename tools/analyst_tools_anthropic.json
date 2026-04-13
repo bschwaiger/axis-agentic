@@ -33,6 +33,10 @@
         "max_results_per_query": {
           "type": "integer",
           "description": "Maximum number of results to return per query. Default: 3"
+        },
+        "output_dir": {
+          "type": "string",
+          "description": "Directory to write literature_results.json. Should match the run output directory."
         }
       },
       "required": ["queries"]
