@@ -14,11 +14,51 @@ from pathlib import Path
 from tools.analyst_impl import (
     compare_baselines,
     generate_figures,
-    write_report,
+    write_report as _write_report_original,
     _load_json,
 )
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
+
+# ------------------------------------------------------------------
+# write_report (wrapper with better error handling)
+# ------------------------------------------------------------------
+
+def write_report(
+    matrix_path: str,
+    comparison_path: str,
+    literature_results: str,
+    figures_dir: str,
+    output_path: str,
+) -> dict:
+    """Wrapper around original write_report with fallback for missing literature."""
+    # If literature_results path doesn't exist, try to find it or create empty
+    lit_path = Path(literature_results)
+    if not lit_path.is_absolute():
+        lit_path = PROJECT_ROOT / lit_path
+    if not lit_path.exists():
+        # Try to find it in the same directory as the matrix
+        matrix_dir = Path(matrix_path)
+        if not matrix_dir.is_absolute():
+            matrix_dir = PROJECT_ROOT / matrix_dir
+        alt_path = matrix_dir.parent / "literature_results.json"
+        if alt_path.exists():
+            literature_results = str(alt_path)
+        else:
+            # Create empty literature results so report generation doesn't crash
+            alt_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(alt_path, "w") as f:
+                json.dump({"status": "not_found", "searches": []}, f)
+            literature_results = str(alt_path)
+
+    return _write_report_original(
+        matrix_path=matrix_path,
+        comparison_path=comparison_path,
+        literature_results=literature_results,
+        figures_dir=figures_dir,
+        output_path=output_path,
+    )
 
 
 # ------------------------------------------------------------------
@@ -52,15 +92,14 @@ def search_literature(queries: list[str], max_results_per_query: int = 3) -> dic
                     "type": "web_search_20250305",
                     "name": "web_search",
                     "max_uses": max_results_per_query + 2,
+                    "allowed_domains": ["pubmed.ncbi.nlm.nih.gov"],
                 }],
                 messages=[{
                     "role": "user",
                     "content": (
                         f"Search PubMed for: {query}\n\n"
-                        f"Focus on results from pubmed.ncbi.nlm.nih.gov. "
-                        f"Return up to {max_results_per_query} relevant papers. "
-                        f"For each paper, provide: title, PubMed URL, authors (first author et al.), "
-                        f"journal, year, and a one-sentence summary of the findings."
+                        f"Return up to {max_results_per_query} relevant papers from PubMed. "
+                        f"For each paper, provide: title, PubMed URL, and a one-sentence summary."
                     ),
                 }],
             )
@@ -92,8 +131,8 @@ def search_literature(queries: list[str], max_results_per_query: int = 3) -> dic
 
     # Write next to the comparison matrix if one exists
     from datetime import datetime as _dt
-    fallback = PROJECT_ROOT / "results" / f"literature_{_dt.now().strftime('%y%m%d%H%M')}.json"
     import glob
+    fallback = PROJECT_ROOT / "results" / f"literature_{_dt.now().strftime('%y%m%d%H%M')}.json"
     matrices = sorted(glob.glob(str(PROJECT_ROOT / "results" / "*" / "comparison_matrix.json")))
     if matrices:
         out = Path(matrices[-1]).parent / "literature_results.json"
@@ -104,51 +143,63 @@ def search_literature(queries: list[str], max_results_per_query: int = 3) -> dic
         json.dump(result, f, indent=2)
 
     result["literature_path"] = str(out)
+    # Also return the path explicitly so Claude can pass it to write_report
+    result["output_note"] = f"Literature results written to {out}. Pass this path as literature_results to write_report."
     return result
 
 
 def _parse_search_response(response) -> list[dict]:
     """Parse an Anthropic web search response into structured paper results.
 
-    Extracts information from both web_search_tool_result blocks (which contain
-    the actual search results with URLs) and text blocks (which contain Claude's
-    formatted summary).
+    Response content blocks follow this pattern:
+    1. text — Claude's decision to search
+    2. server_tool_use — The search query
+    3. web_search_tool_result — Array of search result objects with url, title, page_age, encrypted_content
+    4. text — Claude's summary with citations
+
+    We extract from web_search_tool_result blocks (structured) and fall back
+    to parsing URLs from text blocks.
     """
     hits = []
     seen_urls = set()
 
-    # First pass: extract structured results from web_search_tool_result blocks
+    # First pass: extract from web_search_tool_result blocks
     for block in response.content:
-        if hasattr(block, 'type') and block.type == "web_search_tool_result":
-            for search_result in getattr(block, 'search_results', []):
-                url = getattr(search_result, 'url', '')
-                title = getattr(search_result, 'title', '')
-                snippet = getattr(search_result, 'snippet', '')
-                # Only include PubMed results
-                if 'pubmed.ncbi.nlm.nih.gov' in url and url not in seen_urls:
-                    seen_urls.add(url)
-                    hits.append({
-                        "title": title.replace(" - PubMed", "").strip(),
-                        "url": url,
-                        "content": snippet[:500] if snippet else "",
-                    })
-
-    # Second pass: if no structured results, parse from text
-    if not hits:
-        for block in response.content:
-            if hasattr(block, 'type') and block.type == "text" and block.text:
-                # Try to extract PubMed URLs and titles from text
-                import re
-                # Match URLs
-                urls = re.findall(r'https?://pubmed\.ncbi\.nlm\.nih\.gov/\d+/?', block.text)
-                for url in urls:
-                    if url not in seen_urls:
+        block_type = getattr(block, 'type', '')
+        if block_type == "web_search_tool_result":
+            # The block contains a 'content' list of search result objects
+            content_list = getattr(block, 'content', [])
+            if not isinstance(content_list, list):
+                content_list = []
+            for item in content_list:
+                item_type = getattr(item, 'type', '')
+                if item_type == 'web_search_result':
+                    url = getattr(item, 'url', '')
+                    title = getattr(item, 'title', '')
+                    # encrypted_content is not human-readable; page_age is metadata
+                    if url and url not in seen_urls:
                         seen_urls.add(url)
                         hits.append({
-                            "title": "",
+                            "title": title.replace(" - PubMed", "").strip(),
                             "url": url,
-                            "content": "",
+                            "content": "",  # no plaintext snippet available from web search API
                         })
+
+    # Second pass: extract cited text from Claude's text blocks (has citations)
+    for block in response.content:
+        if getattr(block, 'type', '') == "text" and hasattr(block, 'text') and block.text:
+            # Try to enrich existing hits with context from the text
+            import re
+            # Also catch any PubMed URLs not in structured results
+            urls = re.findall(r'https?://pubmed\.ncbi\.nlm\.nih\.gov/\d+/?', block.text)
+            for url in urls:
+                if url not in seen_urls:
+                    seen_urls.add(url)
+                    hits.append({
+                        "title": "",
+                        "url": url,
+                        "content": "",
+                    })
 
     return hits
 

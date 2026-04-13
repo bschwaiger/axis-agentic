@@ -68,15 +68,17 @@ performance? Which metrics deviate from baselines? Are there body-part or sample
 MedGemma vision-language model), what task it performs (e.g. abnormality detection on MSK \
 radiographs), and what the comparative findings suggest (e.g. which metrics are flagged, \
 what patterns you see across datasets).
-- Then propose 2-4 PubMed search queries. STRICT RULES for queries:
-  - Maximum 5 words per query
-  - Use MeSH-style keywords, not sentences
-  - Good: "MedGemma fracture detection", "MURA deep learning benchmark", "musculoskeletal AI sensitivity"
-  - Bad: "Effect of training set size on sensitivity and specificity in deep learning models"
-- Format your proposed queries as a numbered list:
+- Then propose exactly 3 PubMed search queries. STRICT RULES:
+  - 3-5 words MAXIMUM per query. Count the words. If more than 5, shorten.
+  - Use MeSH-style keyword phrases, NOT natural language sentences.
+  - Queries should cover: (1) the model/task domain, (2) the benchmark/dataset, (3) a specific metric or finding.
+  - GOOD examples: "MURA deep learning benchmark", "musculoskeletal radiograph AI", "MCC sensitivity fracture detection"
+  - BAD examples (DO NOT USE): "Effect of training set size on model performance", "deep learning for detecting abnormalities in musculoskeletal radiographs"
+- Format as a numbered list with ONLY the queries, no explanations after each:
   1. query one
   2. query two
-- After proposing queries, STOP and wait for human approval.
+  3. query three
+- After proposing queries, STOP and wait for human approval. Do not call any tools.
 - When approved queries arrive, call search_literature, then generate_figures, then write_report.
 - For write_report, pass: matrix_path, comparison_path, literature_results, figures_dir, output_path.\
 """
@@ -339,39 +341,55 @@ def run_agent(matrix_path: str, task: dict, verbose: bool = False) -> dict:
 
                 if approved_queries:
                     checkpoint_done = True
+                    # Pre-compute expected paths so Claude uses correct values
+                    matrix_dir = Path(matrix_path)
+                    if not matrix_dir.is_absolute():
+                        matrix_dir = PROJECT_ROOT / matrix_dir
+                    comparison_path = str(matrix_dir.parent / "comparison.json")
+                    literature_path = str(matrix_dir.parent / "literature_results.json")
+
                     messages.append({
                         "role": "user",
                         "content": (
                             f"The human has approved the following search queries:\n"
                             + "\n".join(f"{i+1}. {q}" for i, q in enumerate(approved_queries))
-                            + f"\n\nPlease call search_literature with these queries, "
-                            f"then generate_figures with matrix_path=\"{matrix_path}\" "
-                            f"and output_dir=\"{output_dir}\", "
-                            f"then write_report with matrix_path=\"{matrix_path}\", "
-                            f"figures_dir=\"{output_dir}\", and "
-                            f"output_path=\"{output_dir}/report.md\"."
+                            + f"\n\nCall these tools in order:\n"
+                            f"1. search_literature with queries={json.dumps(approved_queries)}\n"
+                            f"2. generate_figures with matrix_path=\"{matrix_path}\", output_dir=\"{output_dir}\"\n"
+                            f"3. write_report with matrix_path=\"{matrix_path}\", "
+                            f"comparison_path=\"{comparison_path}\", "
+                            f"literature_results=\"{literature_path}\", "
+                            f"figures_dir=\"{output_dir}\", "
+                            f"output_path=\"{output_dir}/report.md\""
                         ),
                     })
                     continue
                 else:
                     checkpoint_done = True
-                    lit_path = Path(output_dir)
-                    if not lit_path.is_absolute():
-                        lit_path = PROJECT_ROOT / lit_path
-                    lit_path.mkdir(parents=True, exist_ok=True)
-                    lit_file = lit_path / "literature_results.json"
+                    lit_dir = Path(output_dir)
+                    if not lit_dir.is_absolute():
+                        lit_dir = PROJECT_ROOT / lit_dir
+                    lit_dir.mkdir(parents=True, exist_ok=True)
+                    lit_file = lit_dir / "literature_results.json"
                     with open(lit_file, "w") as f:
                         json.dump({"status": "skipped", "searches": []}, f)
+
+                    matrix_dir = Path(matrix_path)
+                    if not matrix_dir.is_absolute():
+                        matrix_dir = PROJECT_ROOT / matrix_dir
+                    skip_comparison_path = str(matrix_dir.parent / "comparison.json")
+
                     messages.append({
                         "role": "user",
                         "content": (
-                            "The human skipped literature search. "
-                            f"Proceed to generate_figures with matrix_path=\"{matrix_path}\" "
-                            f"and output_dir=\"{output_dir}\", "
-                            f"then write_report with matrix_path=\"{matrix_path}\", "
+                            "The human skipped literature search.\n\n"
+                            f"Call these tools in order:\n"
+                            f"1. generate_figures with matrix_path=\"{matrix_path}\", output_dir=\"{output_dir}\"\n"
+                            f"2. write_report with matrix_path=\"{matrix_path}\", "
+                            f"comparison_path=\"{skip_comparison_path}\", "
                             f"literature_results=\"{lit_file}\", "
                             f"figures_dir=\"{output_dir}\", "
-                            f"output_path=\"{output_dir}/report.md\"."
+                            f"output_path=\"{output_dir}/report.md\""
                         ),
                     })
                     continue
