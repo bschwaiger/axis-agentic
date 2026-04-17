@@ -242,6 +242,13 @@ def run_pipeline(config: dict, verbose: bool = False):
     }
 
     for i, ds in enumerate(datasets, 1):
+        # Check stop/pause between evaluator runs
+        events.wait_if_paused()
+        if events.check_stop():
+            print("  Pipeline stopped by user.")
+            events.emit("pipeline_error", error="Stopped by user")
+            return
+
         print(f"▶ Phase 1.{i}: Evaluator — {ds['name']}")
         events.emit("evaluator_start", dataset=ds["name"], eval_index=i - 1)
 
@@ -301,6 +308,13 @@ def run_pipeline(config: dict, verbose: bool = False):
     # ----------------------------------------------------------
     # Phase 3: Analyst (comparative analysis)
     # ----------------------------------------------------------
+    # Check stop/pause before analyst
+    events.wait_if_paused()
+    if events.check_stop():
+        print("  Pipeline stopped by user.")
+        events.emit("pipeline_error", error="Stopped by user")
+        return
+
     print("▶ Phase 2: Analyst — Comparative Analysis")
     events.emit("analyst_start")
 
@@ -316,7 +330,16 @@ def run_pipeline(config: dict, verbose: bool = False):
         verbose=verbose,
     )
 
-    events.emit("analyst_done", report_path=analyst_result.get("report_path", ""))
+    # Emit report content for inline display
+    report_path = analyst_result.get("report_path", "")
+    report_content = ""
+    if report_path:
+        rp = Path(report_path)
+        if not rp.is_absolute():
+            rp = PROJECT_ROOT / rp
+        if rp.exists():
+            report_content = rp.read_text()
+    events.emit("analyst_done", report_path=report_path, report_content=report_content)
 
     # ----------------------------------------------------------
     # Phase 4: Summary

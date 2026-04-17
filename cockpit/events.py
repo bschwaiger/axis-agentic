@@ -19,9 +19,49 @@ _lock = threading.Lock()
 # Whether cockpit mode is active (set by cockpit app on startup)
 cockpit_enabled = False
 
+# Pipeline control flags
+pipeline_stop_requested = False
+pipeline_paused = threading.Event()
+pipeline_paused.set()  # starts unpaused (set = not blocking)
+
 # Pending approval futures — the pipeline blocks on these
 _approval_events: dict[str, threading.Event] = {}
 _approval_values: dict[str, Any] = {}
+
+
+def request_stop():
+    """Signal the pipeline to stop after current step."""
+    global pipeline_stop_requested
+    pipeline_stop_requested = True
+    # Also unblock pause so the stop can take effect
+    pipeline_paused.set()
+
+
+def request_pause():
+    """Pause the pipeline — it will block before next step."""
+    pipeline_paused.clear()
+
+
+def request_resume():
+    """Resume a paused pipeline."""
+    pipeline_paused.set()
+
+
+def reset_controls():
+    """Reset stop/pause state for a new pipeline run."""
+    global pipeline_stop_requested
+    pipeline_stop_requested = False
+    pipeline_paused.set()
+
+
+def check_stop() -> bool:
+    """Check if stop was requested. Call between pipeline steps."""
+    return pipeline_stop_requested
+
+
+def wait_if_paused():
+    """Block if paused. Call between pipeline steps."""
+    pipeline_paused.wait()
 
 
 def enable():

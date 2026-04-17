@@ -117,6 +117,9 @@ async def start_pipeline(request: Request):
         "baseline_source": model["baseline_source"],
     }
 
+    # Reset control flags for fresh run
+    events.reset_controls()
+
     # Run pipeline in background thread
     def _run():
         try:
@@ -128,6 +131,39 @@ async def start_pipeline(request: Request):
     t.start()
 
     return JSONResponse({"status": "started", "model": model["name"], "datasets": [d["name"] for d in datasets]})
+
+
+@app.post("/control/stop")
+async def stop_pipeline():
+    events.request_stop()
+    events.emit("pipeline_stopped")
+    return JSONResponse({"status": "stop_requested"})
+
+
+@app.post("/control/pause")
+async def pause_pipeline():
+    events.request_pause()
+    events.emit("pipeline_paused")
+    return JSONResponse({"status": "paused"})
+
+
+@app.post("/control/resume")
+async def resume_pipeline():
+    events.request_resume()
+    events.emit("pipeline_resumed")
+    return JSONResponse({"status": "resumed"})
+
+
+@app.post("/control/restart")
+async def restart_pipeline(request: Request):
+    """Stop current run, reset, and restart."""
+    events.request_stop()
+    # Give pipeline thread a moment to exit
+    import asyncio
+    await asyncio.sleep(0.5)
+    events.reset_controls()
+    # Re-trigger start with same config — client will POST to /start
+    return JSONResponse({"status": "ready_to_restart"})
 
 
 @app.get("/config")

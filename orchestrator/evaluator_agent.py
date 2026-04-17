@@ -186,8 +186,24 @@ def run_agent(task: dict, verbose: bool = False) -> dict:
                 result_data = json.loads(result_str)
 
                 # Clean logging
+                summary = _summarize_result(fn_name, result_data)
                 print(format_tool_result(fn_name, result_data))
-                events.emit("tool_result", fn_name=fn_name, summary=_summarize_result(fn_name, result_data), agent="evaluator")
+                events.emit("tool_result", fn_name=fn_name, summary=summary, agent="evaluator")
+
+                # Emit milestones for the pipeline sidebar
+                if fn_name == "run_inference" and result_data.get("status") == "success":
+                    n = result_data.get("predictions_written", "?")
+                    errs = result_data.get("error_count", 0)
+                    events.emit("milestone", text=f"{n} predictions written, {errs} errors", agent="evaluator")
+                elif fn_name == "validate_results":
+                    if result_data.get("status") == "pass":
+                        events.emit("milestone", text="Results validated", agent="evaluator")
+                    else:
+                        issues = result_data.get("issues", [])
+                        events.emit("milestone", text=f"Validation: {'; '.join(issues[:2])}", agent="evaluator")
+                elif fn_name == "compute_metrics" and result_data.get("status") == "success":
+                    s = result_data.get("summary", {})
+                    events.emit("milestone", text=f"MCC={s.get('mcc','?')}, Sens={s.get('sensitivity','?')}, Spec={s.get('specificity','?')}", agent="evaluator")
 
                 if verbose:
                     print(f"    Raw: {json.dumps(result_data, indent=2)[:500]}")

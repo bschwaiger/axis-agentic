@@ -296,8 +296,23 @@ def run_agent(matrix_path: str, task: dict, verbose: bool = False) -> dict:
                 result_str = execute_tool(fn_name, fn_args)
                 result_data = json.loads(result_str)
 
+                summary = _summarize_result(fn_name, result_data)
                 print(format_tool_result(fn_name, result_data))
-                events.emit("tool_result", fn_name=fn_name, summary=_summarize_result(fn_name, result_data), agent="analyst")
+                events.emit("tool_result", fn_name=fn_name, summary=summary, agent="analyst")
+
+                # Milestones
+                if fn_name == "compare_baselines":
+                    flags = result_data.get("flags", [])
+                    events.emit("milestone", text=f"Baselines compared, {len(flags)} flags", agent="analyst")
+                elif fn_name == "search_literature":
+                    total = result_data.get("total_results", 0)
+                    events.emit("milestone", text=f"{total} papers found", agent="analyst")
+                elif fn_name == "generate_figures":
+                    figs = result_data.get("figures", [])
+                    events.emit("milestone", text=f"{len(figs)} figures generated", agent="analyst")
+                elif fn_name == "write_report" and result_data.get("status") == "success":
+                    wc = result_data.get("word_count", "?")
+                    events.emit("milestone", text=f"Report written ({wc} words)", agent="analyst")
                 if fn_name == "search_literature":
                     lit_display = format_literature_results(result_data)
                     if lit_display:
