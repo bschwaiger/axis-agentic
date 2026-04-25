@@ -114,8 +114,9 @@ def terminal_checkpoint_queries(proposed_text: str) -> tuple[list[str], str]:
 
     reasoning_text = " ".join(reasoning_lines)
 
-    if reasoning_text:
-        events.emit("claude_text", text=reasoning_text, agent="analyst")
+    # The reasoning is included in the checkpoint_queries event below, so the
+    # cockpit renders it inside the checkpoint card. Don't fire a separate
+    # claude_text card with the same content.
 
     if reasoning_lines:
         print()
