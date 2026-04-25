@@ -164,10 +164,119 @@ async def restart_pipeline(request: Request):
 
 @app.get("/config")
 async def get_config():
+    """Active models + datasets used by the picker (read from coordinator's profile)."""
     from orchestrator.coordinator import AVAILABLE_MODELS, AVAILABLE_DATASETS
     return JSONResponse({
         "models": [{"name": m["name"], "description": m["description"], "id": m["id"]} for m in AVAILABLE_MODELS],
         "datasets": [{"name": d["name"], "description": d["description"]} for d in AVAILABLE_DATASETS],
+    })
+
+
+# ------------------------------------------------------------------
+# Profile management (used by the cockpit setup wizard)
+# ------------------------------------------------------------------
+
+@app.get("/profile")
+async def get_profile():
+    """Return the saved profile (or the default if none saved)."""
+    from axis_agentic.profile import load_profile, profile_exists, PROFILE_PATH
+    return JSONResponse({
+        "exists": profile_exists(),
+        "path": str(PROFILE_PATH),
+        "profile": load_profile(),
+    })
+
+
+@app.get("/profile/default")
+async def get_default_profile():
+    """Return the built-in DEFAULT_PROFILE (independent of what's on disk)."""
+    from axis_agentic.profile import DEFAULT_PROFILE
+    import copy
+    return JSONResponse({"profile": copy.deepcopy(DEFAULT_PROFILE)})
+
+
+@app.post("/profile")
+async def save_profile_endpoint(request: Request):
+    """Persist a profile to disk and rewire the coordinator to use it."""
+    from axis_agentic.profile import save_profile, apply_engine_env, PROFILE_PATH
+    import importlib
+    import orchestrator.coordinator as coord_mod
+
+    body = await request.json()
+    profile = body.get("profile")
+    if not isinstance(profile, dict):
+        return JSONResponse({"error": "Missing 'profile' object"}, status_code=400)
+
+    # Persist (unless skip_save requested — for "use defaults" / "use this once" flows)
+    if not body.get("skip_save"):
+        path = save_profile(profile)
+    else:
+        path = None
+
+    # Apply engine env vars in-process so the next pipeline run uses them
+    apply_engine_env(profile)
+
+    # Reload the coordinator module so AVAILABLE_MODELS/_DATASETS pick up the change
+    importlib.reload(coord_mod)
+
+    return JSONResponse({
+        "status": "ok",
+        "saved": bool(path),
+        "path": str(path) if path else None,
+    })
+
+
+# ------------------------------------------------------------------
+# Server-side file browser (for the model-path picker in the wizard)
+# ------------------------------------------------------------------
+
+@app.get("/browse")
+async def browse(path: str = ""):
+    """List subdirectories + files at `path`. Defaults to $HOME.
+
+    Returns: { path, parent, entries: [{name, kind: 'dir'|'file', size?}] }
+    Used by the model-path picker modal.
+    """
+    import os
+    from pathlib import Path as P
+
+    target = P(path).expanduser() if path else P.home()
+    try:
+        target = target.resolve()
+    except Exception:
+        return JSONResponse({"error": f"Cannot resolve {path!r}"}, status_code=400)
+
+    if not target.exists():
+        return JSONResponse({"error": f"Path not found: {target}"}, status_code=404)
+    if not target.is_dir():
+        # User clicked a file — return the parent so the modal can show siblings
+        target = target.parent
+
+    entries = []
+    try:
+        for child in sorted(target.iterdir(), key=lambda p: (not p.is_dir(), p.name.lower())):
+            if child.name.startswith("."):
+                continue
+            try:
+                kind = "dir" if child.is_dir() else "file"
+                entry = {"name": child.name, "kind": kind, "path": str(child)}
+                if kind == "file":
+                    try:
+                        entry["size"] = child.stat().st_size
+                    except OSError:
+                        pass
+                entries.append(entry)
+            except (PermissionError, OSError):
+                continue
+    except PermissionError:
+        return JSONResponse({"error": f"Permission denied: {target}"}, status_code=403)
+
+    parent = str(target.parent) if target.parent != target else None
+    return JSONResponse({
+        "path": str(target),
+        "parent": parent,
+        "home": str(P.home()),
+        "entries": entries,
     })
 
 

@@ -429,6 +429,299 @@
     .sidebar { width: 220px; }
     .main-area { padding: 16px; }
   }
+
+  /* ---- Welcome / wizard / modals ---- */
+  .welcome-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 16px;
+    margin-top: 24px;
+  }
+  .welcome-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    box-shadow: var(--shadow);
+  }
+  .welcome-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  }
+  .welcome-card.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .welcome-card.disabled:hover {
+    border-color: var(--border);
+    transform: none;
+    box-shadow: var(--shadow);
+  }
+  .welcome-card-title {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+  .welcome-card-desc {
+    font-size: 13px;
+    color: var(--text-dim);
+    margin-bottom: 12px;
+  }
+  .welcome-card-meta {
+    font-size: 12px;
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+    border-top: 1px solid var(--border);
+    padding-top: 10px;
+    margin-top: 10px;
+  }
+
+  .wizard-progress {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 24px;
+    font-size: 12px;
+    color: var(--text-dim);
+    flex-wrap: wrap;
+  }
+  .wizard-progress span {
+    padding: 4px 10px;
+    border-radius: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+  }
+  .wizard-progress span.active {
+    background: var(--accent-light);
+    color: var(--accent);
+    border-color: var(--accent);
+    font-weight: 600;
+  }
+  .wizard-progress span.done {
+    color: var(--green);
+    border-color: var(--green);
+  }
+
+  .wizard-nav {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 32px;
+    gap: 12px;
+  }
+  .wizard-nav .btn-secondary {
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .wizard-nav .btn-secondary:hover { background: var(--surface2); }
+
+  .wizard-radio-list label {
+    display: block;
+    padding: 12px 16px;
+    margin-bottom: 8px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: border 0.1s ease;
+  }
+  .wizard-radio-list label:hover { border-color: var(--accent); }
+  .wizard-radio-list label.checked {
+    border-color: var(--accent);
+    background: var(--accent-light);
+  }
+  .wizard-radio-list input[type="radio"] { margin-right: 10px; }
+  .wizard-radio-list .radio-desc {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-left: 24px;
+    margin-top: 2px;
+  }
+
+  .wizard-field { margin-bottom: 16px; }
+  .wizard-field label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  .wizard-field input, .wizard-field select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 14px;
+    font-family: var(--font);
+  }
+  .wizard-field .hint {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-top: 4px;
+  }
+
+  .registry-list {
+    list-style: none;
+    margin: 16px 0;
+    padding: 0;
+  }
+  .registry-list li {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .registry-list .item-title { font-weight: 600; font-size: 14px; }
+  .registry-list .item-meta { font-size: 12px; color: var(--text-dim); margin-top: 2px; font-family: var(--font-mono); }
+  .registry-list button.delete {
+    background: transparent;
+    border: 1px solid var(--red);
+    color: var(--red);
+    padding: 4px 10px;
+    font-size: 12px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .registry-list button.delete:hover { background: var(--red-light); }
+  .registry-empty {
+    color: var(--text-dim);
+    font-size: 13px;
+    text-align: center;
+    padding: 24px;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius);
+  }
+
+  /* Modal */
+  .modal {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+  }
+  .modal-content {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 24px;
+    max-width: 580px;
+    width: 90%;
+    max-height: 85vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  }
+  .modal-content h2 {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 18px;
+  }
+  .modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+  .modal-actions button {
+    padding: 8px 16px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    border: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .modal-actions button.primary {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+  }
+  .modal-actions button.primary:hover { background: #005bb5; }
+  .modal-actions button:hover { background: var(--surface2); }
+
+  /* Drag-and-drop dropzone */
+  .dropzone {
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 13px;
+    margin-top: 12px;
+    transition: all 0.1s ease;
+  }
+  .dropzone.dragging {
+    border-color: var(--accent);
+    background: var(--accent-light);
+    color: var(--accent);
+  }
+
+  /* File browser */
+  .fb-path {
+    background: var(--surface2);
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    margin-bottom: 12px;
+    border: 1px solid var(--border);
+    word-break: break-all;
+  }
+  .fb-list {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    max-height: 360px;
+    overflow-y: auto;
+  }
+  .fb-entry {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .fb-entry:last-child { border-bottom: 0; }
+  .fb-entry:hover { background: var(--accent-light); }
+  .fb-entry.dir { font-weight: 600; }
+  .fb-entry.dir::before { content: '📁'; }
+  .fb-entry.file::before { content: '📄'; opacity: 0.5; }
+  .fb-entry.parent { color: var(--text-dim); }
+  .fb-entry.parent::before { content: '↰'; }
+
+  /* Path input + browse button row */
+  .path-input-row {
+    display: flex;
+    gap: 8px;
+  }
+  .path-input-row input { flex: 1; }
+  .path-input-row button {
+    padding: 0 14px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+  .path-input-row button:hover { background: var(--surface2); }
+
+  details summary {
+    cursor: pointer;
+    padding: 8px 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-dim);
+  }
+  details[open] summary { color: var(--text); }
 </style>
 </head>
 <body>
@@ -458,22 +751,155 @@
   <!-- ======== MAIN ======== -->
   <main class="main-area">
 
-    <!-- Setup form (shown initially) -->
-    <div id="setupView">
-      <h2 style="font-size:22px; font-weight:700; margin-bottom:24px;">New Evaluation</h2>
+    <!-- Welcome view (shown initially) -->
+    <div id="welcomeView">
+      <h2 style="font-size:22px; font-weight:700; margin-bottom:8px;">New Evaluation</h2>
+      <p style="color:var(--text-dim); font-size:14px;">Where do you want to start?</p>
+      <div class="welcome-cards">
+        <div class="welcome-card" onclick="startWith('default')">
+          <div class="welcome-card-title">Use defaults</div>
+          <div class="welcome-card-desc">Built-in AXIS-MURA model + standard MURA evaluation subsets.</div>
+          <div class="welcome-card-meta" id="defaultMeta">…</div>
+        </div>
+        <div class="welcome-card" id="savedCard" onclick="startWith('saved')">
+          <div class="welcome-card-title">Use saved profile</div>
+          <div class="welcome-card-desc">Your profile at <code>~/.config/axis-agentic/profile.yaml</code>.</div>
+          <div class="welcome-card-meta" id="savedMeta">…</div>
+        </div>
+        <div class="welcome-card" onclick="startWith('new')">
+          <div class="welcome-card-title">Configure new</div>
+          <div class="welcome-card-desc">Pick engine + adapter, register your own models and datasets.</div>
+          <div class="welcome-card-meta">4 quick steps</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Wizard (configure-new flow) -->
+    <div id="wizardView" hidden>
+      <div class="wizard-progress" id="wizardProgress">
+        <span data-step="engine" class="active">1. Engine</span>
+        <span data-step="adapter">2. Adapter</span>
+        <span data-step="models">3. Models</span>
+        <span data-step="datasets">4. Datasets</span>
+      </div>
+
+      <!-- Step: Engine -->
+      <div id="wizardEngine" class="wizard-step-content">
+        <h2 style="font-size:20px; font-weight:700; margin-bottom:8px;">Engine</h2>
+        <p style="color:var(--text-dim); font-size:13px; margin-bottom:16px;">Which LLM should drive the agents?</p>
+        <div class="wizard-radio-list" id="enginePresets">
+          <label data-preset="anthropic">
+            <input type="radio" name="enginePreset" value="anthropic" checked> Anthropic Claude
+            <div class="radio-desc">Default — best tool-calling fidelity, requires <code>ANTHROPIC_API_KEY</code></div>
+          </label>
+          <label data-preset="openai">
+            <input type="radio" name="enginePreset" value="openai"> OpenAI
+            <div class="radio-desc">GPT-4o or any chat-completions model, requires <code>OPENAI_API_KEY</code></div>
+          </label>
+          <label data-preset="ollama">
+            <input type="radio" name="enginePreset" value="ollama"> Ollama (local)
+            <div class="radio-desc">Qwen / Llama / etc. running on <code>localhost:11434</code> — no key needed</div>
+          </label>
+          <label data-preset="nim">
+            <input type="radio" name="enginePreset" value="nim"> NVIDIA NIM (Nemotron)
+            <div class="radio-desc">Hosted at <code>integrate.api.nvidia.com</code>, requires NVIDIA API key in <code>OPENAI_API_KEY</code></div>
+          </label>
+          <label data-preset="custom">
+            <input type="radio" name="enginePreset" value="custom"> Custom OpenAI-compatible endpoint
+            <div class="radio-desc">Any chat-completions API: Together, Groq, LM Studio, …</div>
+          </label>
+        </div>
+        <div class="wizard-field">
+          <label>Model name</label>
+          <input type="text" id="wizEngineModel" value="claude-sonnet-4-6">
+        </div>
+        <div class="wizard-field" id="wizEngineBaseUrlField" hidden>
+          <label>Base URL</label>
+          <input type="text" id="wizEngineBaseUrl" placeholder="http://localhost:11434/v1">
+        </div>
+        <div class="wizard-nav">
+          <button class="btn-secondary" onclick="cancelWizard()">Cancel</button>
+          <button class="btn btn-primary" onclick="wizardGoto('adapter')">Next →</button>
+        </div>
+      </div>
+
+      <!-- Step: Adapter -->
+      <div id="wizardAdapter" class="wizard-step-content" hidden>
+        <h2 style="font-size:20px; font-weight:700; margin-bottom:8px;">Default adapter</h2>
+        <p style="color:var(--text-dim); font-size:13px; margin-bottom:16px;">How should the model under test be called? Each model you add can override this.</p>
+        <div class="wizard-radio-list" id="adapterPresets">
+          <label data-preset="http">
+            <input type="radio" name="adapterPreset" value="http" checked> HTTP endpoint
+            <div class="radio-desc">Any inference server — your local MedGemma server on <code>:8321</code>, OpenAI vision, Replicate, …</div>
+          </label>
+          <label data-preset="mlx">
+            <input type="radio" name="adapterPreset" value="mlx"> MLX (in-process Apple Silicon)
+            <div class="radio-desc">Load a local mlx-vlm model directly — no server</div>
+          </label>
+          <label data-preset="transformers">
+            <input type="radio" name="adapterPreset" value="transformers"> HuggingFace transformers
+            <div class="radio-desc">Load a HF model ID or local checkpoint via PyTorch</div>
+          </label>
+          <label data-preset="anthropic">
+            <input type="radio" name="adapterPreset" value="anthropic"> Anthropic Claude vision
+            <div class="radio-desc">Use Claude as the model under test — for benchmarking against a frontier VLM</div>
+          </label>
+        </div>
+        <div class="wizard-field">
+          <label id="wizAdapterPathLabel">URL</label>
+          <div class="path-input-row">
+            <input type="text" id="wizAdapterPath" value="http://localhost:8321/predict">
+            <button id="wizAdapterBrowseBtn" hidden onclick="openFileBrowser('wizAdapterPath')">Browse…</button>
+          </div>
+          <div class="hint" id="wizAdapterHint">URL of the inference server</div>
+        </div>
+        <div class="wizard-nav">
+          <button class="btn-secondary" onclick="wizardGoto('engine')">← Back</button>
+          <button class="btn btn-primary" onclick="wizardGoto('models')">Next →</button>
+        </div>
+      </div>
+
+      <!-- Step: Models -->
+      <div id="wizardModels" class="wizard-step-content" hidden>
+        <h2 style="font-size:20px; font-weight:700; margin-bottom:8px;">Models</h2>
+        <p style="color:var(--text-dim); font-size:13px; margin-bottom:16px;">Register the models you want to evaluate. Each can use a different adapter.</p>
+        <ul class="registry-list" id="wizModelsList"></ul>
+        <button class="btn-secondary" onclick="openAddModelModal()">+ Add model</button>
+        <div class="wizard-nav">
+          <button class="btn-secondary" onclick="wizardGoto('adapter')">← Back</button>
+          <button class="btn btn-primary" onclick="wizardGoto('datasets')">Next →</button>
+        </div>
+      </div>
+
+      <!-- Step: Datasets -->
+      <div id="wizardDatasets" class="wizard-step-content" hidden>
+        <h2 style="font-size:20px; font-weight:700; margin-bottom:8px;">Datasets</h2>
+        <p style="color:var(--text-dim); font-size:13px; margin-bottom:16px;">Register the evaluation datasets. Auto-detect runs if no manifest is found at the path.</p>
+        <ul class="registry-list" id="wizDatasetsList"></ul>
+        <button class="btn-secondary" onclick="openAddDatasetModal()">+ Add dataset</button>
+        <div class="wizard-nav">
+          <button class="btn-secondary" onclick="wizardGoto('models')">← Back</button>
+          <button class="btn btn-primary" onclick="wizardFinish()">Save profile & continue →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Setup view (model/dataset picker) — shown after welcome/wizard -->
+    <div id="setupView" hidden>
+      <h2 style="font-size:22px; font-weight:700; margin-bottom:8px;">Pick model + datasets</h2>
+      <p style="color:var(--text-dim); font-size:13px; margin-bottom:16px;">
+        <span id="setupSourceLabel"></span>
+        <a href="#" onclick="backToWelcome();return false;" style="margin-left:8px;">← change</a>
+      </p>
 
       <div class="setup-section">
         <label>Model</label>
         <ul class="option-list" id="modelList"></ul>
-        <div class="setup-hint">For a custom model, enter the path to a folder containing model.safetensors</div>
-        <input type="text" class="setup-input" id="customModelPath" placeholder="/path/to/model/">
       </div>
 
       <div class="setup-section">
         <label>Datasets (click to toggle)</label>
         <ul class="option-list" id="datasetList"></ul>
-        <div class="setup-hint">Select multiple for comparative evaluation. Enter a path for custom datasets with manifest.csv</div>
-        <input type="text" class="setup-input" id="customDatasetPath" placeholder="/path/to/dataset/">
       </div>
 
       <button class="btn btn-primary" id="startBtn" disabled style="width:100%; margin-top:8px;">Start Evaluation</button>
@@ -494,6 +920,107 @@
     </div>
 
   </main>
+</div>
+
+<!-- ============================================================
+     Modals — overlay any view
+     ============================================================ -->
+
+<!-- Add Model -->
+<div id="addModelModal" class="modal" hidden>
+  <div class="modal-content">
+    <h2>Add model</h2>
+    <div class="wizard-field">
+      <label>Display name</label>
+      <input type="text" id="newModelName" placeholder="e.g. AXIS-MURA-v1 4-bit">
+    </div>
+    <div class="wizard-field">
+      <label>Adapter</label>
+      <select id="newModelAdapterKind">
+        <option value="http">HTTP endpoint</option>
+        <option value="mlx">MLX (Apple Silicon, local)</option>
+        <option value="transformers">HuggingFace transformers</option>
+        <option value="anthropic">Anthropic Claude vision</option>
+      </select>
+    </div>
+    <div class="wizard-field">
+      <label id="newModelPathLabel">URL</label>
+      <div class="path-input-row">
+        <input type="text" id="newModelPath" placeholder="http://localhost:8321/predict">
+        <button id="newModelBrowseBtn" hidden onclick="openFileBrowser('newModelPath')">Browse…</button>
+      </div>
+      <div class="hint" id="newModelPathHint">URL of the inference server</div>
+      <div class="dropzone" id="newModelDropzone" hidden>
+        Drop a folder here, or paste its absolute path above
+      </div>
+    </div>
+    <details>
+      <summary>Optional: baseline metrics for comparison</summary>
+      <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; margin-top:8px;">
+        <div class="wizard-field"><label>MCC</label><input type="number" id="newModelMcc" step="0.001" placeholder="0.637"></div>
+        <div class="wizard-field"><label>Sensitivity</label><input type="number" id="newModelSens" step="0.001" placeholder="0.743"></div>
+        <div class="wizard-field"><label>Specificity</label><input type="number" id="newModelSpec" step="0.001" placeholder="0.920"></div>
+      </div>
+      <div class="wizard-field">
+        <label>Source</label>
+        <input type="text" id="newModelBaselineSrc" placeholder="e.g. Schwaiger 2026, MURA valid n=896">
+      </div>
+    </details>
+    <div class="modal-actions">
+      <button onclick="closeAddModelModal()">Cancel</button>
+      <button class="primary" onclick="saveAddModelModal()">Add model</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Dataset -->
+<div id="addDatasetModal" class="modal" hidden>
+  <div class="modal-content">
+    <h2>Add dataset</h2>
+    <div class="wizard-field">
+      <label>Display name</label>
+      <input type="text" id="newDatasetName" placeholder="e.g. mura-valid">
+    </div>
+    <div class="wizard-field">
+      <label>Description (optional)</label>
+      <input type="text" id="newDatasetDescription" placeholder="e.g. Full MURA valid set, 896 studies">
+    </div>
+    <div class="wizard-field">
+      <label>Dataset folder</label>
+      <div class="path-input-row">
+        <input type="text" id="newDatasetPath" placeholder="/path/to/dataset">
+        <button onclick="openFileBrowser('newDatasetPath')">Browse…</button>
+      </div>
+      <div class="dropzone" id="newDatasetDropzone">
+        Drop a folder here, or paste its absolute path above
+      </div>
+    </div>
+    <div class="wizard-field">
+      <label>Manifest CSV (optional — auto-detect runs if missing)</label>
+      <div class="path-input-row">
+        <input type="text" id="newDatasetManifest" placeholder="manifest.csv">
+        <button onclick="openFileBrowser('newDatasetManifest')">Browse…</button>
+      </div>
+      <div class="hint">If left blank, defaults to <code>&lt;folder&gt;/manifest.csv</code>. If that doesn't exist, the agent will run dataset auto-detect when you start the run.</div>
+    </div>
+    <div class="modal-actions">
+      <button onclick="closeAddDatasetModal()">Cancel</button>
+      <button class="primary" onclick="saveAddDatasetModal()">Add dataset</button>
+    </div>
+  </div>
+</div>
+
+<!-- File browser -->
+<div id="fileBrowserModal" class="modal" hidden>
+  <div class="modal-content">
+    <h2>Browse</h2>
+    <div class="fb-path" id="fbPath"></div>
+    <div class="fb-list" id="fbList"></div>
+    <div class="modal-actions">
+      <button onclick="closeFileBrowser()">Cancel</button>
+      <button class="primary" onclick="selectCurrentFolder()">Select this folder</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -1156,7 +1683,496 @@ dynamicSteps = [
 ];
 renderSteps();
 
-loadConfig();
+// ======================================================================
+// Setup wizard — welcome screen, configure-new flow, modals, file browser
+// ======================================================================
+
+// In-memory profile being edited in the wizard. Started from default,
+// reset when the wizard re-opens.
+let wizardProfile = null;
+let _fbCurrentPath = '';
+let _fbTargetField = null;
+
+// Welcome metadata
+async function loadWelcomeMeta() {
+  try {
+    const def = await (await fetch('/profile/default')).json();
+    $('#defaultMeta').textContent =
+      `${def.profile.models.length} models · ${def.profile.datasets.length} datasets · engine: ${def.profile.engine.kind}`;
+  } catch (e) { $('#defaultMeta').textContent = '(unavailable)'; }
+  try {
+    const sav = await (await fetch('/profile')).json();
+    if (sav.exists) {
+      $('#savedMeta').textContent =
+        `${sav.profile.models.length} models · ${sav.profile.datasets.length} datasets · engine: ${sav.profile.engine.kind}`;
+    } else {
+      $('#savedMeta').textContent = '(no profile saved yet)';
+      $('#savedCard').classList.add('disabled');
+      $('#savedCard').onclick = null;
+    }
+  } catch (e) { $('#savedMeta').textContent = '(error)'; }
+}
+
+// Top-level state transitions — welcome / wizard / setup picker.
+// Feed visibility is managed by pipeline_start / pipeline_complete handlers.
+function showOnly(viewId) {
+  ['welcomeView', 'wizardView', 'setupView'].forEach(id => {
+    const el = $('#' + id);
+    if (!el) return;
+    if (id === viewId) el.removeAttribute('hidden');
+    else el.setAttribute('hidden', '');
+  });
+}
+
+function backToWelcome() {
+  showOnly('welcomeView');
+  loadWelcomeMeta();
+}
+
+async function startWith(action) {
+  if (action === 'default') {
+    const r = await (await fetch('/profile/default')).json();
+    await applyProfile(r.profile, { skipSave: true, label: 'Built-in defaults' });
+  } else if (action === 'saved') {
+    const r = await (await fetch('/profile')).json();
+    if (!r.exists) { alert('No saved profile yet.'); return; }
+    await applyProfile(r.profile, { skipSave: true, label: 'Saved profile' });
+  } else if (action === 'new') {
+    const def = (await (await fetch('/profile/default')).json()).profile;
+    // Start the wizard from defaults so the user has something sensible to edit.
+    wizardProfile = JSON.parse(JSON.stringify(def));
+    wizardGoto('engine');
+    showOnly('wizardView');
+  }
+}
+
+async function applyProfile(profile, { skipSave = false, label = '' }) {
+  // Push the profile to the server (which also reloads coordinator).
+  try {
+    await fetch('/profile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ profile, skip_save: skipSave }),
+    });
+  } catch (e) {
+    addLog && addLog('error-entry', 'Failed to apply profile: ' + e.message);
+    return;
+  }
+  // Re-pull /config so the picker shows the updated registry
+  await loadConfig();
+  // Reset selections
+  selectedModel = profile.models.length > 0 ? 0 : null;
+  selectedDatasets = new Set(profile.datasets.length > 0 ? [0] : []);
+  $('#setupSourceLabel').textContent = label;
+  showOnly('setupView');
+  renderSetup();
+}
+
+// ----- Wizard step navigation -----
+
+const WIZARD_STEPS = ['engine', 'adapter', 'models', 'datasets'];
+
+function wizardGoto(step) {
+  WIZARD_STEPS.forEach(s => {
+    const view = $('#wizard' + s.charAt(0).toUpperCase() + s.slice(1));
+    if (view) view.hidden = (s !== step);
+  });
+  // Progress chips
+  document.querySelectorAll('#wizardProgress span').forEach(el => {
+    const s = el.dataset.step;
+    el.classList.remove('active', 'done');
+    const idx = WIZARD_STEPS.indexOf(s);
+    const cur = WIZARD_STEPS.indexOf(step);
+    if (s === step) el.classList.add('active');
+    else if (idx < cur) el.classList.add('done');
+  });
+
+  // Sync visible form to current state of wizardProfile
+  if (step === 'engine') renderWizardEngine();
+  if (step === 'adapter') renderWizardAdapter();
+  if (step === 'models') renderWizardModels();
+  if (step === 'datasets') renderWizardDatasets();
+}
+
+function cancelWizard() { backToWelcome(); }
+
+async function wizardFinish() {
+  // Capture step 1 + 2 from form fields (in case user didn't navigate)
+  if (!_engineCaptured) captureWizardEngine();
+  if (!_adapterCaptured) captureWizardAdapter();
+  // Save profile to disk and apply
+  await applyProfile(wizardProfile, { skipSave: false, label: 'Configured (saved to profile)' });
+}
+
+// ----- Wizard step: engine -----
+let _engineCaptured = false;
+const ENGINE_PRESETS = {
+  anthropic: { kind: 'anthropic', model: 'claude-sonnet-4-6', base_url: null },
+  openai:    { kind: 'openai-compat', model: 'gpt-4o', base_url: null },
+  ollama:    { kind: 'openai-compat', model: 'qwen2.5', base_url: 'http://localhost:11434/v1' },
+  nim:       { kind: 'openai-compat', model: 'nvidia/llama-3.3-nemotron-super-49b-v1', base_url: 'https://integrate.api.nvidia.com/v1' },
+  custom:    { kind: 'openai-compat', model: '', base_url: '' },
+};
+
+function renderWizardEngine() {
+  const eng = wizardProfile.engine || {};
+  // Reverse-map current engine to a preset
+  let preset = 'custom';
+  for (const [k, v] of Object.entries(ENGINE_PRESETS)) {
+    if (v.kind === eng.kind && v.model === eng.model && (v.base_url || null) === (eng.base_url || null)) {
+      preset = k; break;
+    }
+  }
+  document.querySelector(`input[name="enginePreset"][value="${preset}"]`).checked = true;
+  $('#wizEngineModel').value = eng.model || '';
+  if (eng.base_url) {
+    $('#wizEngineBaseUrlField').hidden = false;
+    $('#wizEngineBaseUrl').value = eng.base_url;
+  } else if (preset === 'custom' || preset === 'ollama' || preset === 'nim' || preset === 'openai') {
+    $('#wizEngineBaseUrlField').hidden = (preset === 'anthropic');
+  }
+  updateEnginePresetUI();
+}
+
+function updateEnginePresetUI() {
+  const preset = document.querySelector('input[name="enginePreset"]:checked').value;
+  const p = ENGINE_PRESETS[preset];
+  if (preset !== 'custom') {
+    $('#wizEngineModel').value = p.model;
+    $('#wizEngineBaseUrl').value = p.base_url || '';
+  }
+  $('#wizEngineBaseUrlField').hidden = (preset === 'anthropic');
+  // Highlight selected card
+  document.querySelectorAll('#enginePresets label').forEach(l => {
+    l.classList.toggle('checked', l.dataset.preset === preset);
+  });
+}
+
+document.querySelectorAll('input[name="enginePreset"]').forEach(r => {
+  r.addEventListener('change', () => {
+    _engineCaptured = false;
+    updateEnginePresetUI();
+  });
+});
+
+function captureWizardEngine() {
+  const preset = document.querySelector('input[name="enginePreset"]:checked').value;
+  const p = ENGINE_PRESETS[preset];
+  const eng = { kind: p.kind, model: $('#wizEngineModel').value.trim() };
+  const bu = $('#wizEngineBaseUrl').value.trim();
+  if (bu) eng.base_url = bu;
+  wizardProfile.engine = eng;
+  _engineCaptured = true;
+}
+
+// ----- Wizard step: adapter -----
+let _adapterCaptured = false;
+
+function renderWizardAdapter() {
+  const adp = wizardProfile.adapter || { kind: 'http', url: 'http://localhost:8321/predict' };
+  const kind = adp.kind || 'http';
+  document.querySelector(`input[name="adapterPreset"][value="${kind}"]`).checked = true;
+  updateAdapterPresetUI();
+  // Populate the path field with the existing value
+  $('#wizAdapterPath').value = adp.url || adp.model_path || adp.model_id || adp.model || '';
+}
+
+function updateAdapterPresetUI() {
+  const kind = document.querySelector('input[name="adapterPreset"]:checked').value;
+  const labels = {
+    http: ['URL', 'URL of the inference server', false],
+    mlx: ['Model folder', 'Path to a folder containing the MLX model', true],
+    transformers: ['HF model ID or local path', 'e.g. google/medgemma-1.5-4b-it', true],
+    anthropic: ['Anthropic vision model', 'e.g. claude-sonnet-4-6 (no path needed)', false],
+  };
+  const [lab, hint, browse] = labels[kind];
+  $('#wizAdapterPathLabel').textContent = lab;
+  $('#wizAdapterHint').textContent = hint;
+  $('#wizAdapterBrowseBtn').hidden = !browse;
+  document.querySelectorAll('#adapterPresets label').forEach(l => {
+    l.classList.toggle('checked', l.dataset.preset === kind);
+  });
+}
+
+document.querySelectorAll('input[name="adapterPreset"]').forEach(r => {
+  r.addEventListener('change', () => {
+    _adapterCaptured = false;
+    updateAdapterPresetUI();
+  });
+});
+
+function captureWizardAdapter() {
+  const kind = document.querySelector('input[name="adapterPreset"]:checked').value;
+  const val = $('#wizAdapterPath').value.trim();
+  let adapter;
+  if (kind === 'http') adapter = { kind: 'http', url: val || 'http://localhost:8321/predict' };
+  else if (kind === 'mlx') adapter = { kind: 'mlx', model_path: val };
+  else if (kind === 'transformers') adapter = { kind: 'transformers', model_id: val };
+  else adapter = { kind: 'anthropic', model: val || 'claude-sonnet-4-6' };
+  wizardProfile.adapter = adapter;
+  _adapterCaptured = true;
+}
+
+// ----- Wizard step: models -----
+
+function renderWizardModels() {
+  const ul = $('#wizModelsList');
+  ul.innerHTML = '';
+  const models = wizardProfile.models || [];
+  if (models.length === 0) {
+    ul.innerHTML = '<div class="registry-empty">No models registered yet. Click + Add model.</div>';
+    return;
+  }
+  models.forEach((m, i) => {
+    const li = document.createElement('li');
+    const ad = m.adapter || {};
+    const target = ad.url || ad.model_path || ad.model_id || ad.model || '?';
+    li.innerHTML = `
+      <div>
+        <div class="item-title">${m.name}</div>
+        <div class="item-meta">${ad.kind}: ${target}</div>
+      </div>
+      <button class="delete">Remove</button>`;
+    li.querySelector('.delete').onclick = () => {
+      wizardProfile.models.splice(i, 1);
+      renderWizardModels();
+    };
+    ul.appendChild(li);
+  });
+}
+
+// ----- Wizard step: datasets -----
+
+function renderWizardDatasets() {
+  const ul = $('#wizDatasetsList');
+  ul.innerHTML = '';
+  const datasets = wizardProfile.datasets || [];
+  if (datasets.length === 0) {
+    ul.innerHTML = '<div class="registry-empty">No datasets registered yet. Click + Add dataset.</div>';
+    return;
+  }
+  datasets.forEach((d, i) => {
+    const li = document.createElement('li');
+    li.innerHTML = `
+      <div>
+        <div class="item-title">${d.name}</div>
+        <div class="item-meta">${d.dataset_path}</div>
+      </div>
+      <button class="delete">Remove</button>`;
+    li.querySelector('.delete').onclick = () => {
+      wizardProfile.datasets.splice(i, 1);
+      renderWizardDatasets();
+    };
+    ul.appendChild(li);
+  });
+}
+
+// ----- Add Model modal -----
+
+function openAddModelModal() {
+  $('#addModelModal').hidden = false;
+  $('#newModelName').value = '';
+  $('#newModelPath').value = '';
+  $('#newModelMcc').value = '';
+  $('#newModelSens').value = '';
+  $('#newModelSpec').value = '';
+  $('#newModelBaselineSrc').value = '';
+  $('#newModelAdapterKind').value = 'http';
+  updateAddModelKindUI();
+  $('#newModelName').focus();
+}
+
+function closeAddModelModal() { $('#addModelModal').hidden = true; }
+
+$('#newModelAdapterKind').addEventListener('change', updateAddModelKindUI);
+
+function updateAddModelKindUI() {
+  const kind = $('#newModelAdapterKind').value;
+  const labels = {
+    http: ['URL', 'URL of the inference server', false, false],
+    mlx: ['Model folder', 'Folder containing the MLX model', true, true],
+    transformers: ['HF ID or local path', 'e.g. google/medgemma-1.5-4b-it', true, true],
+    anthropic: ['Vision model name', 'e.g. claude-sonnet-4-6', false, false],
+  };
+  const [lab, hint, showBrowse, showDrop] = labels[kind];
+  $('#newModelPathLabel').textContent = lab;
+  $('#newModelPathHint').textContent = hint;
+  $('#newModelBrowseBtn').hidden = !showBrowse;
+  $('#newModelDropzone').hidden = !showDrop;
+  // Default path/value per kind
+  const defaults = {
+    http: 'http://localhost:8321/predict',
+    mlx: '',
+    transformers: '',
+    anthropic: 'claude-sonnet-4-6',
+  };
+  if (!$('#newModelPath').value) $('#newModelPath').value = defaults[kind];
+}
+
+function saveAddModelModal() {
+  const name = $('#newModelName').value.trim();
+  if (!name) { alert('Display name is required.'); return; }
+  const kind = $('#newModelAdapterKind').value;
+  const val = $('#newModelPath').value.trim();
+  let adapter;
+  if (kind === 'http') adapter = { kind: 'http', url: val || 'http://localhost:8321/predict' };
+  else if (kind === 'mlx') adapter = { kind: 'mlx', model_path: val };
+  else if (kind === 'transformers') adapter = { kind: 'transformers', model_id: val };
+  else adapter = { kind: 'anthropic', model: val || 'claude-sonnet-4-6' };
+
+  const baseline_values = {};
+  ['mcc', 'sens', 'spec'].forEach(k => {
+    const el = $('#newModel' + k.charAt(0).toUpperCase() + k.slice(1));
+    if (el && el.value !== '') baseline_values[k === 'sens' ? 'sensitivity' : k === 'spec' ? 'specificity' : k] = parseFloat(el.value);
+  });
+  const baseline_source = $('#newModelBaselineSrc').value.trim();
+
+  const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+  wizardProfile.models = wizardProfile.models || [];
+  wizardProfile.models.push({
+    name,
+    id,
+    description: adapter.kind + (val ? ': ' + val : ''),
+    adapter,
+    baseline_values,
+    baseline_source,
+  });
+  closeAddModelModal();
+  renderWizardModels();
+}
+
+// ----- Add Dataset modal -----
+
+function openAddDatasetModal() {
+  $('#addDatasetModal').hidden = false;
+  $('#newDatasetName').value = '';
+  $('#newDatasetDescription').value = '';
+  $('#newDatasetPath').value = '';
+  $('#newDatasetManifest').value = '';
+  $('#newDatasetName').focus();
+}
+
+function closeAddDatasetModal() { $('#addDatasetModal').hidden = true; }
+
+function saveAddDatasetModal() {
+  const path = $('#newDatasetPath').value.trim();
+  if (!path) { alert('Dataset folder is required.'); return; }
+  const name = $('#newDatasetName').value.trim() || path.split('/').filter(Boolean).pop();
+  const description = $('#newDatasetDescription').value.trim();
+  const manifest = $('#newDatasetManifest').value.trim() || (path.replace(/\/$/, '') + '/manifest.csv');
+
+  wizardProfile.datasets = wizardProfile.datasets || [];
+  wizardProfile.datasets.push({
+    name,
+    description,
+    dataset_path: path,
+    manifest_path: manifest,
+  });
+  closeAddDatasetModal();
+  renderWizardDatasets();
+}
+
+// ----- Drag-and-drop into the dropzones -----
+
+function setupDropzone(zoneId, inputId) {
+  const zone = $('#' + zoneId);
+  if (!zone) return;
+  ['dragenter', 'dragover'].forEach(ev => zone.addEventListener(ev, e => {
+    e.preventDefault(); zone.classList.add('dragging');
+  }));
+  ['dragleave', 'drop'].forEach(ev => zone.addEventListener(ev, e => {
+    e.preventDefault(); zone.classList.remove('dragging');
+  }));
+  zone.addEventListener('drop', e => {
+    // Browsers don't expose absolute paths. We can read the dropped item's
+    // .name and (maybe) build a relative-looking path. Best UX is to ask
+    // the user to paste the absolute path.
+    const items = e.dataTransfer.items || [];
+    const names = [];
+    for (const it of items) {
+      const f = it.getAsFile && it.getAsFile();
+      if (f) names.push(f.name);
+    }
+    if (names.length) {
+      zone.textContent =
+        `Got: "${names[0]}" — but browsers don't expose the full path. ` +
+        `Paste the absolute path in the box above, or use Browse…`;
+    }
+  });
+}
+
+setupDropzone('newModelDropzone', 'newModelPath');
+setupDropzone('newDatasetDropzone', 'newDatasetPath');
+
+// ----- File browser modal -----
+
+async function openFileBrowser(targetFieldId) {
+  _fbTargetField = targetFieldId;
+  $('#fileBrowserModal').hidden = false;
+  // Start at $HOME (server picks default if no path supplied)
+  await fbNavigate('');
+}
+
+function closeFileBrowser() { $('#fileBrowserModal').hidden = true; }
+
+async function fbNavigate(path) {
+  let r;
+  try {
+    r = await (await fetch('/browse?path=' + encodeURIComponent(path))).json();
+  } catch (e) {
+    $('#fbList').innerHTML = `<div class="fb-entry">Error: ${e.message}</div>`;
+    return;
+  }
+  if (r.error) {
+    $('#fbList').innerHTML = `<div class="fb-entry">${r.error}</div>`;
+    return;
+  }
+  _fbCurrentPath = r.path;
+  $('#fbPath').textContent = r.path;
+  const list = $('#fbList');
+  list.innerHTML = '';
+  if (r.parent && r.parent !== r.path) {
+    const up = document.createElement('div');
+    up.className = 'fb-entry parent';
+    up.textContent = '.. (parent)';
+    up.onclick = () => fbNavigate(r.parent);
+    list.appendChild(up);
+  }
+  r.entries.forEach(e => {
+    const div = document.createElement('div');
+    div.className = 'fb-entry ' + e.kind;
+    div.textContent = e.name + (e.kind === 'file' && e.size != null ? `  (${humanSize(e.size)})` : '');
+    div.onclick = () => {
+      if (e.kind === 'dir') fbNavigate(e.path);
+      else {
+        // Picking a file directly returns its path
+        $('#' + _fbTargetField).value = e.path;
+        closeFileBrowser();
+      }
+    };
+    list.appendChild(div);
+  });
+}
+
+function selectCurrentFolder() {
+  if (_fbTargetField) $('#' + _fbTargetField).value = _fbCurrentPath;
+  closeFileBrowser();
+}
+
+function humanSize(n) {
+  if (n < 1024) return n + ' B';
+  if (n < 1024 * 1024) return (n / 1024).toFixed(0) + ' KB';
+  if (n < 1024 * 1024 * 1024) return (n / 1024 / 1024).toFixed(1) + ' MB';
+  return (n / 1024 / 1024 / 1024).toFixed(1) + ' GB';
+}
+
+// ======================================================================
+// Boot
+// ======================================================================
+
+loadWelcomeMeta();
+showOnly('welcomeView');
 connectSSE();
 </script>
 </body>
