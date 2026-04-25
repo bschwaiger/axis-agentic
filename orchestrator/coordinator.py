@@ -5,7 +5,9 @@ Interactive model and dataset selection. Runs Evaluator per dataset, collects
 metrics into a comparison matrix, then hands the full matrix to the Analyst
 for cross-dataset comparative analysis.
 
-Usage:
+Provider-agnostic — uses the default Engine (Anthropic today; OpenAI-compatible
+in PR2). Run modes:
+
     python -m orchestrator.coordinator
     python -m orchestrator.coordinator --verbose
 """
@@ -23,6 +25,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 from orchestrator.evaluator_agent import run_agent as run_evaluator  # noqa: E402
 from orchestrator.analyst_agent import run_agent as run_analyst  # noqa: E402
+from orchestrator.engine import get_default_engine  # noqa: E402
 from orchestrator.formatting import format_checkpoint  # noqa: E402
 from cockpit import events  # noqa: E402
 
@@ -92,7 +95,6 @@ def interactive_setup() -> dict:
     print("╚══════════════════════════════════════════════════════════════╝")
     print()
 
-    # Model selection
     print("  Select model:")
     for i, m in enumerate(AVAILABLE_MODELS, 1):
         print(f"    [{i}] {m['name']}  —  {m['description']}")
@@ -115,7 +117,6 @@ def interactive_setup() -> dict:
     print(f"  ✓ {model['name']}")
     print()
 
-    # Dataset selection
     print("  Select evaluation datasets:")
     for i, ds in enumerate(AVAILABLE_DATASETS, 1):
         print(f"    [{i}] {ds['name']}  —  {ds['description']}")
@@ -167,7 +168,8 @@ def matrix_checkpoint(matrix: dict) -> bool:
         row = f"  {m.upper():<15s}"
         for ev in matrix["evaluations"]:
             val = ev["metrics"].get(m)
-            row += f"{val:>{col_w}.4f}" if val is not None else f"{'—':>{col_w}s}"
+            dash = "—"
+            row += f"{val:>{col_w}.4f}" if val is not None else f"{dash:>{col_w}s}"
         print(row)
 
     print()
@@ -176,7 +178,6 @@ def matrix_checkpoint(matrix: dict) -> bool:
         n = ev["metrics"].get("total_evaluated", "?")
         print(f"  {ev['dataset_name']} (n={n}): TP={cm[1][1]} FP={cm[0][1]} FN={cm[1][0]} TN={cm[0][0]}")
 
-    # Cockpit mode: emit event and wait for HTTP approval
     if events.is_enabled():
         events.emit("checkpoint_matrix", matrix=matrix)
         result = events.wait_for_approval("matrix_checkpoint", timeout=600.0)
@@ -202,18 +203,16 @@ def matrix_checkpoint(matrix: dict) -> bool:
 # ------------------------------------------------------------------
 
 def run_pipeline(config: dict, verbose: bool = False):
-    """Run the full Coordinator pipeline: 1 model × N datasets."""
+    """Run the full Coordinator pipeline: 1 model x N datasets."""
     model_name = config["model_name"]
     datasets = config["datasets"]
     baseline_values = config.get("baseline_values", {})
     baseline_source = config.get("baseline_source", "")
 
-    # Timestamped run directory
     timestamp = datetime.now().strftime("%y%m%d%H%M")
     run_type = "comparative" if len(datasets) > 1 else "single"
     run_dir = f"results/{timestamp}_{run_type}"
 
-    # Set per-dataset output_dirs under the run directory
     for ds in datasets:
         ds["output_dir"] = f"{run_dir}/{ds['name']}"
 
@@ -221,9 +220,12 @@ def run_pipeline(config: dict, verbose: bool = False):
     n_datasets = len(datasets)
     ds_list = ", ".join(d["name"] for d in datasets)
 
+    engine = get_default_engine()
+
     print(f"  Model:    {model_name}")
     print(f"  Datasets: {ds_list} ({n_datasets} total)")
     print(f"  Output:   {output_dir}")
+    print(f"  Engine:   {engine.provider_name} ({engine.model_name})")
     print()
 
     events.emit("pipeline_start",
@@ -231,9 +233,7 @@ def run_pipeline(config: dict, verbose: bool = False):
                 datasets=[d["name"] for d in datasets],
                 output_dir=output_dir)
 
-    # ----------------------------------------------------------
-    # Phase 1: Run Evaluator for each dataset
-    # ----------------------------------------------------------
+    # Phase 1: Evaluator per dataset
     matrix = {
         "model_name": model_name,
         "baseline_values": baseline_values,
@@ -242,7 +242,6 @@ def run_pipeline(config: dict, verbose: bool = False):
     }
 
     for i, ds in enumerate(datasets, 1):
-        # Check stop/pause between evaluator runs
         events.wait_if_paused()
         if events.check_stop():
             print("  Pipeline stopped by user.")
@@ -260,10 +259,10 @@ def run_pipeline(config: dict, verbose: bool = False):
             "baseline_values": baseline_values,
         }
 
-        result = run_evaluator(eval_task, verbose=verbose)
+        result = run_evaluator(eval_task, verbose=verbose, engine=engine)
 
         if result.get("error") and not result.get("metrics_path"):
-            print(f"  ⚠ Evaluator failed on {ds['name']}: {result.get('error')}")
+            print(f"  Warning: Evaluator failed on {ds['name']}: {result.get('error')}")
             events.emit("evaluator_error", dataset=ds["name"], eval_index=i - 1, error=result.get("error", ""))
             continue
 
@@ -287,10 +286,9 @@ def run_pipeline(config: dict, verbose: bool = False):
         print()
 
     if not matrix["evaluations"]:
-        print("  ✗ No successful evaluations. Aborting.")
+        print("  No successful evaluations. Aborting.")
         return
 
-    # Write matrix JSON
     out_dir = Path(output_dir)
     if not out_dir.is_absolute():
         out_dir = PROJECT_ROOT / out_dir
@@ -299,16 +297,10 @@ def run_pipeline(config: dict, verbose: bool = False):
     with open(matrix_path, "w") as f:
         json.dump(matrix, f, indent=2)
 
-    # ----------------------------------------------------------
-    # Phase 2: Comparison matrix checkpoint
-    # ----------------------------------------------------------
     if not matrix_checkpoint(matrix):
         return
 
-    # ----------------------------------------------------------
-    # Phase 3: Analyst (comparative analysis)
-    # ----------------------------------------------------------
-    # Check stop/pause before analyst
+    # Phase 2: Analyst
     events.wait_if_paused()
     if events.check_stop():
         print("  Pipeline stopped by user.")
@@ -328,9 +320,9 @@ def run_pipeline(config: dict, verbose: bool = False):
         matrix_path=matrix_path,
         task=analyst_config,
         verbose=verbose,
+        engine=engine,
     )
 
-    # Emit report content for inline display
     report_path = analyst_result.get("report_path", "")
     report_content = ""
     if report_path:
@@ -341,12 +333,10 @@ def run_pipeline(config: dict, verbose: bool = False):
             report_content = rp.read_text()
     events.emit("analyst_done", report_path=report_path, report_content=report_content)
 
-    # ----------------------------------------------------------
-    # Phase 4: Summary
-    # ----------------------------------------------------------
+    # Phase 3: Summary
     print()
     print("╔══════════════════════════════════════════════════════════════╗")
-    print("║                     PIPELINE COMPLETE                       ║")
+    print("║                     PIPELINE COMPLETE                        ║")
     print("╚══════════════════════════════════════════════════════════════╝")
 
     _print_results_summary(matrix, out_dir)
@@ -386,10 +376,8 @@ def _print_results_summary(matrix: dict, out_dir: Path):
     baseline_source = matrix.get("baseline_source", "")
     is_comparative = len(evaluations) >= 2
 
-    # Build ASCII lines for cockpit emission
     ascii_lines: list[str] = []
 
-    # Metrics table with delta column for comparative runs
     print()
     datasets = [e["dataset_name"] for e in evaluations]
     col_w = max(12, max(len(d) for d in datasets) + 2)
@@ -407,20 +395,20 @@ def _print_results_summary(matrix: dict, out_dir: Path):
     for m in ["mcc", "sensitivity", "specificity", "precision", "f1", "accuracy"]:
         row = f"{m.upper():<15s}"
         vals = []
+        dash = "—"
         for ev in evaluations:
             val = ev["metrics"].get(m)
             vals.append(val)
-            row += f"{val:>{col_w}.4f}" if val is not None else f"{'—':>{col_w}s}"
+            row += f"{val:>{col_w}.4f}" if val is not None else f"{dash:>{col_w}s}"
         if is_comparative and all(v is not None for v in vals):
             delta = vals[-1] - vals[0]
             delta_str = f"{delta:+.4f}"
             row += f"{delta_str:>{delta_w}s}"
         elif is_comparative:
-            row += f"{'—':>{delta_w}s}"
+            row += f"{dash:>{delta_w}s}"
         print(f"  {row}")
         ascii_lines.append(row)
 
-    # Baseline reference (compact, not the main comparison)
     if baselines and baseline_source:
         print()
         bl_line = f"Ref. baseline ({baseline_source}): {', '.join(f'{k.upper()}={v}' for k, v in baselines.items())}"
@@ -428,7 +416,6 @@ def _print_results_summary(matrix: dict, out_dir: Path):
         ascii_lines.append("")
         ascii_lines.append(bl_line)
 
-    # Side-by-side ASCII confusion matrices for comparative
     print()
     cm_lines: list[str] = []
     if is_comparative and len(evaluations) == 2:
@@ -450,16 +437,15 @@ def _print_results_summary(matrix: dict, out_dir: Path):
             n = ev["metrics"].get("total_evaluated", "?")
             tn, fp, fn, tp = cm[0][0], cm[0][1], cm[1][0], cm[1][1]
             cm_lines.append(f"{ev['dataset_name']} (n={n}):")
-            cm_lines.append(f"  ┌─────────┬─────────┐")
+            cm_lines.append("  ┌─────────┬─────────┐")
             cm_lines.append(f"  │ TN={tn:<4d} │ FP={fp:<4d} │")
-            cm_lines.append(f"  ├─────────┼─────────┤")
+            cm_lines.append("  ├─────────┼─────────┤")
             cm_lines.append(f"  │ FN={fn:<4d} │ TP={tp:<4d} │")
-            cm_lines.append(f"  └─────────┴─────────┘")
+            cm_lines.append("  └─────────┴─────────┘")
             cm_lines.append("")
     for line in cm_lines:
         print(f"  {line}")
 
-    # ASCII bar chart — datasets side by side, baseline as reference line
     bar_w = 30
     bar_lines: list[str] = []
     title = "Cross-dataset comparison:" if is_comparative else "Metrics:"
@@ -495,13 +481,11 @@ def _print_results_summary(matrix: dict, out_dir: Path):
         print()
         bar_lines.append("")
 
-    # Emit ASCII results to cockpit
     events.emit("ascii_results",
                 table="\n".join(ascii_lines),
                 confusion_matrices="\n".join(cm_lines),
                 bar_chart="\n".join(bar_lines))
 
-    # Literature citations
     lit_path = out_dir / "literature_results.json"
     if lit_path.exists():
         from orchestrator.formatting import format_literature_results
@@ -511,7 +495,6 @@ def _print_results_summary(matrix: dict, out_dir: Path):
             if lit_display:
                 print(lit_display)
 
-    # Figures
     pngs = sorted(out_dir.glob("*.png"))
     if pngs:
         print("  Figures:")
@@ -553,6 +536,7 @@ def main():
     args = parser.parse_args()
 
     _load_env()
+
     config = interactive_setup()
     run_pipeline(config, verbose=args.verbose)
 

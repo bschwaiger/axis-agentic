@@ -1,7 +1,10 @@
-"""Shared formatting helpers for demo-friendly terminal output."""
-from __future__ import annotations
+"""Shared formatting helpers for demo-friendly terminal output.
 
-import json
+Provider-agnostic. The engine's provider_name is passed in for any
+"called by X" / "X says" rendering, so the same formatter works for
+Anthropic, OpenAI, Nemotron, Ollama, etc.
+"""
+from __future__ import annotations
 
 
 # ------------------------------------------------------------------
@@ -11,21 +14,21 @@ import json
 def format_tool_call(fn_name: str, fn_args: dict) -> str:
     """Format a tool call as a concise one-liner."""
     key_args = _extract_key_args(fn_name, fn_args)
-    return f"  \u2192 Nemotron: call {fn_name}.py ({key_args})"
+    return f"  → call {fn_name}.py ({key_args})"
 
 
 def format_tool_result(fn_name: str, result: dict) -> str:
     """Format a tool result as a concise one-liner."""
     summary = _summarize_result(fn_name, result)
-    return f"  \u2190 {fn_name}.py: {summary}"
+    return f"  ← {fn_name}.py: {summary}"
 
 
-def format_nemotron_text(content: str) -> str:
-    """Format a Nemotron text response (truncated)."""
+def format_engine_text(provider_name: str, content: str) -> str:
+    """Format an LLM text response (truncated)."""
     clean = content.replace("\n", " ").strip()
     if len(clean) > 100:
         clean = clean[:97] + "..."
-    return f'  \U0001f4ac Nemotron: "{clean}"'
+    return f'  \U0001f4ac {provider_name}: "{clean}"'
 
 
 def format_agent_complete(agent_name: str, metrics: dict | None = None) -> str:
@@ -41,16 +44,16 @@ def format_agent_complete(agent_name: str, metrics: dict | None = None) -> str:
         inner = f"{agent_name} complete (n={n}): {', '.join(parts)}"
     else:
         inner = f"{agent_name} complete"
-    return f"\u250c {'─' * (len(inner) + 2)} \u2510\n\u2502 {inner}   \u2502\n\u2514 {'─' * (len(inner) + 2)} \u2518"
+    return f"┌ {'─' * (len(inner) + 2)} ┐\n│ {inner}   │\n└ {'─' * (len(inner) + 2)} ┘"
 
 
 def format_checkpoint(title: str) -> str:
     """Format a checkpoint header."""
-    return f"\n\u23f8  CHECKPOINT: {title}"
+    return f"\n⏸  CHECKPOINT: {title}"
 
 
 # ------------------------------------------------------------------
-# Key arg extraction per tool
+# Literature results — PubMed E-utilities lookup for citations
 # ------------------------------------------------------------------
 
 def format_literature_results(result: dict) -> str:
@@ -61,7 +64,6 @@ def format_literature_results(result: dict) -> str:
     except ImportError:
         _httpx = None
 
-    # Collect PMIDs
     pmids = []
     fallback_titles = {}
     for search in result.get("searches", []):
@@ -77,7 +79,6 @@ def format_literature_results(result: dict) -> str:
     if not pmids:
         return ""
 
-    # Fetch metadata from PubMed E-utilities
     citations = []
     if _httpx and pmids:
         try:
@@ -95,7 +96,6 @@ def format_literature_results(result: dict) -> str:
         except Exception:
             pass
 
-    # Fallback for any PMIDs we couldn't fetch metadata for
     fetched_pmids = {c["pmid"] for c in citations}
     for pmid in pmids:
         if pmid not in fetched_pmids:
@@ -106,7 +106,7 @@ def format_literature_results(result: dict) -> str:
             })
 
     if citations:
-        lines = [f"    \u2022 {c['formatted']}" for c in citations]
+        lines = [f"    • {c['formatted']}" for c in citations]
         return "\n  Papers identified:\n\n" + "\n".join(lines) + "\n"
     return ""
 
@@ -119,7 +119,6 @@ def _parse_pubmed_article(article) -> dict | None:
         art = medline.find(".//Article")
         title = art.findtext("ArticleTitle", "").rstrip(".")
 
-        # First author
         authors = art.findall(".//Author")
         if authors:
             last = authors[0].findtext("LastName", "")
@@ -130,10 +129,8 @@ def _parse_pubmed_article(article) -> dict | None:
         else:
             first_author = ""
 
-        # Journal
         journal = art.find(".//Journal")
         journal_abbr = journal.findtext("ISOAbbreviation", "") if journal is not None else ""
-        # Year
         pub_date = journal.find(".//PubDate") if journal is not None else None
         year = pub_date.findtext("Year", "") if pub_date is not None else ""
         if not year:
@@ -141,7 +138,6 @@ def _parse_pubmed_article(article) -> dict | None:
             if medline_date:
                 year = medline_date[:4]
 
-        # DOI
         doi = ""
         for eid in art.findall(".//ELocationID"):
             if eid.get("EIdType") == "doi":
@@ -154,7 +150,6 @@ def _parse_pubmed_article(article) -> dict | None:
                     doi = aid.text or ""
                     break
 
-        # Format: Title. First Author, et al. Journal, Year. DOI: xxx
         parts = [title]
         if first_author:
             parts.append(first_author)
@@ -165,7 +160,6 @@ def _parse_pubmed_article(article) -> dict | None:
             journal_year += f", {year}" if journal_year else year
         if journal_year:
             parts.append(journal_year)
-        # Join parts, avoiding double periods
         formatted = ". ".join(p.rstrip(".") for p in parts)
         if doi:
             formatted += f". DOI: {doi}"
@@ -174,6 +168,10 @@ def _parse_pubmed_article(article) -> dict | None:
     except Exception:
         return None
 
+
+# ------------------------------------------------------------------
+# Argument and result summarizers per tool name
+# ------------------------------------------------------------------
 
 def _extract_key_args(fn_name: str, args: dict) -> str:
     if fn_name == "run_inference":
@@ -214,10 +212,10 @@ def _summarize_result(fn_name: str, result: dict) -> str:
         nulls = result.get("null_predictions", 0)
         n = result.get("total_predictions", "?")
         if status == "pass":
-            return f"PASS \u2014 {n} predictions validated, {nulls} nulls"
+            return f"PASS — {n} predictions validated, {nulls} nulls"
         else:
             issues = result.get("issues", [])
-            return f"FAIL \u2014 {'; '.join(issues[:2])}"
+            return f"FAIL — {'; '.join(issues[:2])}"
     elif fn_name == "compute_metrics":
         s = result.get("summary", {})
         n = s.get("n", "?")
@@ -230,8 +228,8 @@ def _summarize_result(fn_name: str, result: dict) -> str:
         flags = result.get("flags", [])
         summary = result.get("summary", "")
         if flags:
-            return f"FLAGGED \u2014 {summary}"
-        return f"PASS \u2014 {summary}"
+            return f"FLAGGED — {summary}"
+        return f"PASS — {summary}"
     elif fn_name == "search_literature":
         total = result.get("total_results", 0)
         nq = result.get("total_queries", 0)

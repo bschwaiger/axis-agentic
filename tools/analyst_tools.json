@@ -1,105 +1,91 @@
 [
   {
-    "type": "function",
-    "function": {
-      "name": "compare_baselines",
-      "description": "Compare metrics from multiple dataset evaluations against baseline values and against each other. Reads the comparison matrix JSON (containing metrics for N datasets). For each dataset, flags metrics that deviate from baselines beyond a threshold. Also computes cross-dataset deltas to identify performance differences across dataset sizes or compositions.",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "matrix_path": {
-            "type": "string",
-            "description": "Path to the comparison_matrix.json produced by the Coordinator"
-          },
-          "threshold": {
-            "type": "number",
-            "description": "Absolute delta threshold for flagging a metric as significantly different from baseline. Default: 0.05"
-          }
+    "name": "compare_baselines",
+    "description": "Compare metrics from multiple dataset evaluations against baseline values and against each other. Reads the comparison matrix JSON (containing metrics for N datasets). For each dataset, flags metrics that deviate from baselines beyond a threshold. Also computes cross-dataset deltas to identify performance differences across dataset sizes or compositions.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "matrix_path": {
+          "type": "string",
+          "description": "Path to the comparison_matrix.json produced by the Coordinator"
         },
-        "required": ["matrix_path"],
-        "additionalProperties": false
-      }
+        "threshold": {
+          "type": "number",
+          "description": "Absolute delta threshold for flagging a metric as significantly different from baseline. Default: 0.05"
+        }
+      },
+      "required": ["matrix_path"]
     }
   },
   {
-    "type": "function",
-    "function": {
-      "name": "search_literature",
-      "description": "Search PubMed for relevant literature using Tavily API. Scoped to pubmed.ncbi.nlm.nih.gov. Returns titles, URLs, and content snippets for each result. Use this after the human has approved the proposed search queries.",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "queries": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "description": "List of search queries to execute against PubMed"
-          },
-          "max_results_per_query": {
-            "type": "integer",
-            "description": "Maximum number of results to return per query. Default: 3"
-          }
+    "name": "search_literature",
+    "description": "Search PubMed for relevant literature using Anthropic web search. Scoped to pubmed.ncbi.nlm.nih.gov. Returns titles, URLs, and content snippets for each result. Use this after the human has approved the proposed search queries.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "queries": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "List of search queries to execute against PubMed"
         },
-        "required": ["queries"],
-        "additionalProperties": false
-      }
+        "max_results_per_query": {
+          "type": "integer",
+          "description": "Maximum number of results to return per query. Default: 3"
+        },
+        "output_dir": {
+          "type": "string",
+          "description": "Directory to write literature_results.json. Should match the run output directory."
+        }
+      },
+      "required": ["queries"]
     }
   },
   {
-    "type": "function",
-    "function": {
-      "name": "generate_figures",
-      "description": "Generate publication-style figures from the comparison matrix. Produces per-dataset confusion matrices, a comparative metrics bar chart, and confidence distribution histograms. Saves figures as PNG files.",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "matrix_path": {
-            "type": "string",
-            "description": "Path to the comparison_matrix.json"
-          },
-          "output_dir": {
-            "type": "string",
-            "description": "Directory where figure PNG files will be saved"
-          }
+    "name": "generate_figures",
+    "description": "Generate publication-style figures from the comparison matrix. Produces per-dataset confusion matrices, a comparative metrics bar chart, and confidence distribution histograms. Saves figures as PNG files.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "matrix_path": {
+          "type": "string",
+          "description": "Path to the comparison_matrix.json"
         },
-        "required": ["matrix_path", "output_dir"],
-        "additionalProperties": false
-      }
+        "output_dir": {
+          "type": "string",
+          "description": "Directory where figure PNG files will be saved"
+        }
+      },
+      "required": ["matrix_path", "output_dir"]
     }
   },
   {
-    "type": "function",
-    "function": {
-      "name": "write_report",
-      "description": "Generate a structured comparative Markdown evaluation report. Covers all datasets in the comparison matrix: per-dataset metrics tables, cross-dataset comparison, baseline deltas, literature context from PubMed, and references to figures. Writes the report to a .md file.",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "matrix_path": {
-            "type": "string",
-            "description": "Path to the comparison_matrix.json"
-          },
-          "comparison_path": {
-            "type": "string",
-            "description": "Path to the comparison results JSON from compare_baselines"
-          },
-          "literature_results": {
-            "type": "string",
-            "description": "Path to the literature search results JSON from search_literature"
-          },
-          "figures_dir": {
-            "type": "string",
-            "description": "Directory containing generated figure PNGs"
-          },
-          "output_path": {
-            "type": "string",
-            "description": "Path where the Markdown report will be written"
-          }
+    "name": "write_report",
+    "description": "Generate a structured comparative Markdown evaluation report. Covers all datasets in the comparison matrix: per-dataset metrics tables, cross-dataset comparison, baseline deltas, literature context from PubMed, and references to figures. Writes the report to a .md file.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "matrix_path": {
+          "type": "string",
+          "description": "Path to the comparison_matrix.json"
         },
-        "required": ["matrix_path", "comparison_path", "literature_results", "figures_dir", "output_path"],
-        "additionalProperties": false
-      }
+        "comparison_path": {
+          "type": "string",
+          "description": "Path to the comparison results JSON from compare_baselines"
+        },
+        "literature_results": {
+          "type": "string",
+          "description": "Path to the literature search results JSON from search_literature"
+        },
+        "figures_dir": {
+          "type": "string",
+          "description": "Directory containing generated figure PNGs"
+        },
+        "output_path": {
+          "type": "string",
+          "description": "Path where the Markdown report will be written"
+        }
+      },
+      "required": ["matrix_path", "comparison_path", "literature_results", "figures_dir", "output_path"]
     }
   }
 ]

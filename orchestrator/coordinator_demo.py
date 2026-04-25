@@ -2,8 +2,8 @@
 Coordinator (Demo Mode) — Runs the full AXIS Agentic pipeline with synthetic inference.
 
 Patches run_inference to use fast synthetic predictions (~50ms/study) instead of
-calling the local MedGemma inference server. Everything else runs live: Nemotron
-orchestration, validation, metrics, analyst, literature search, figures, report.
+calling a real inference adapter. Everything else runs live: agent orchestration,
+validation, metrics, analyst, literature search, figures, report.
 
 Usage:
     python -m orchestrator.coordinator_demo
@@ -27,11 +27,11 @@ from orchestrator.coordinator import (  # noqa: E402
 
 
 DEMO_BANNER = """
-\033[43m\033[30m                                                                \033[0m
-\033[43m\033[30m   DEMO MODE — Local Inference Simulated                        \033[0m
+\033[43m\033[30m                                                                 \033[0m
+\033[43m\033[30m   DEMO MODE — Local Inference Simulated                         \033[0m
 \033[43m\033[30m   Predictions are synthetic (~50ms/study). No inference server  \033[0m
 \033[43m\033[30m   needed. All other pipeline steps run live.                    \033[0m
-\033[43m\033[30m                                                                \033[0m
+\033[43m\033[30m                                                                 \033[0m
 """
 
 

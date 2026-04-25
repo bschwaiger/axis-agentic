@@ -1,12 +1,13 @@
 """
 Cockpit (Demo Mode) — Web UI with demo banner for synthetic inference.
 
-Serves the same dashboard as the regular cockpit but injects a sticky
-"Demo Mode" banner at the top and patches inference to use synthetic data.
+Same dashboard as the regular cockpit, with:
+- A sticky DEMO MODE banner injected at the top of the HTML
+- run_inference patched to use synthetic predictions (no inference server needed)
+- Everything else (engine, validation, metrics, analyst, literature) runs live
 
 Usage:
     python -m cockpit.app_demo
-    python -m cockpit.app_demo --run
 """
 from __future__ import annotations
 
@@ -22,11 +23,10 @@ sys.path.insert(0, str(PROJECT_ROOT))
 from tools.evaluator_impl_demo import patch_tool_functions  # noqa: E402
 patch_tool_functions()
 
-from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 import uvicorn
 
-from cockpit.app import app  # noqa: E402
+from cockpit.app import app, _kill_port, _load_env  # noqa: E402
 from cockpit import events  # noqa: E402
 
 COCKPIT_DIR = Path(__file__).resolve().parent
@@ -42,7 +42,7 @@ DEMO_BANNER_HTML = """\
 ">
   DEMO MODE &mdash; Local Inference Simulated
   <span style="font-weight:400; margin-left: 12px; opacity: 0.8;">
-    Predictions are synthetic. All other pipeline steps run live.
+    Predictions are synthetic. The active engine orchestrates all other steps live.
   </span>
 </div>
 <style>
@@ -56,7 +56,6 @@ DEMO_BANNER_HTML = """\
 async def index_demo():
     """Serve the cockpit HTML with an injected demo banner."""
     html = (COCKPIT_DIR / "index.html").read_text()
-    # Inject banner right after <body>
     html = html.replace("<body>", "<body>\n" + DEMO_BANNER_HTML, 1)
     return HTMLResponse(html)
 
@@ -65,21 +64,15 @@ def main():
     parser = argparse.ArgumentParser(description="AXIS Agentic Cockpit (Demo Mode)")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8322)
-    parser.add_argument("--run", action="store_true", help="Also launch the pipeline interactively")
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args()
 
+    _kill_port(args.port)
     events.enable()
+    _load_env()
 
-    # Load .env
-    env_path = PROJECT_ROOT / ".env"
-    if env_path.exists():
-        for line in env_path.read_text().splitlines():
-            if "=" in line and not line.startswith("#"):
-                key, val = line.split("=", 1)
-                key, val = key.strip(), val.strip()
-                if key and not os.environ.get(key):
-                    os.environ[key] = val
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        print("[!] ANTHROPIC_API_KEY not set in .env — the default engine will fail at runtime.")
 
     print()
     print("  \033[43m\033[30m DEMO MODE \033[0m")

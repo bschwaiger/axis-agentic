@@ -1,13 +1,15 @@
 """
 Analyst Agent — Agent 2 in the AXIS Agentic pipeline.
 
-Receives a comparison matrix (1 model × N datasets) from the Coordinator and runs:
+Receives a comparison matrix (1 model x N datasets) from the Coordinator and runs:
 1. compare_baselines — analyze metrics across datasets vs. baselines + cross-dataset deltas
-2. Nemotron proposes PubMed search queries based on comparative findings
-3. Terminal checkpoint — human reviews/edits proposed queries
-4. search_literature — Tavily API scoped to PubMed
+2. The model proposes PubMed search queries based on comparative findings
+3. Terminal/cockpit checkpoint — human reviews/edits proposed queries
+4. search_literature — Anthropic web search scoped to PubMed
 5. generate_figures — per-dataset confusion matrices, comparative bar chart, confidence distributions
 6. write_report — structured comparative Markdown report with Literature Context
+
+Provider-agnostic: drives any Engine (Anthropic today; OpenAI-compatible in PR2).
 
 Usage:
     python -m orchestrator.analyst_agent \
@@ -23,27 +25,19 @@ import re
 import sys
 from pathlib import Path
 
-import httpx
 import yaml
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from tools.analyst_impl import execute_tool  # noqa: E402
+from orchestrator.engine import Engine, ToolResult, get_default_engine  # noqa: E402
 from orchestrator.formatting import (  # noqa: E402
-    format_tool_call, format_tool_result, format_nemotron_text,
+    format_tool_call, format_tool_result, format_engine_text,
     format_agent_complete, format_checkpoint, format_literature_results,
     _extract_key_args, _summarize_result,
 )
 from cockpit import events  # noqa: E402
-
-# ------------------------------------------------------------------
-# Config
-# ------------------------------------------------------------------
-
-NIM_BASE_URL = os.environ.get("NIM_BASE_URL", "https://integrate.api.nvidia.com/v1")
-NIM_MODEL = os.environ.get("NIM_MODEL", "nvidia/nemotron-3-super-120b-a12b")
-API_KEY = os.environ.get("NVIDIA_API_KEY", "")
 
 MAX_TURNS = 15
 
@@ -71,25 +65,23 @@ performance? Which metrics deviate from baselines? Are there body-part or sample
 MedGemma vision-language model), what task it performs (e.g. abnormality detection on MSK \
 radiographs), and what the comparative findings suggest (e.g. which metrics are flagged, \
 what patterns you see across datasets).
-- Then propose 2-4 PubMed search queries. STRICT RULES for queries:
-  - Maximum 5 words per query
-  - Use MeSH-style keywords, not sentences
-  - Good: "MedGemma fracture detection", "MURA deep learning benchmark", "musculoskeletal AI sensitivity"
-  - Bad: "Effect of training set size on sensitivity and specificity in deep learning models"
-- Format your proposed queries as a numbered list:
+- Then propose exactly 3 PubMed search queries. STRICT RULES:
+  - 3-5 words MAXIMUM per query. Count the words. If more than 5, shorten.
+  - Use MeSH-style keyword phrases, NOT natural language sentences.
+  - Queries should cover: (1) the model/task domain, (2) the benchmark/dataset, (3) a specific metric or finding.
+  - GOOD examples: "MURA deep learning benchmark", "musculoskeletal radiograph AI", "MCC sensitivity fracture detection"
+  - BAD examples (DO NOT USE): "Effect of training set size on model performance", "deep learning for detecting abnormalities in musculoskeletal radiographs"
+- Format as a numbered list with ONLY the queries, no explanations after each:
   1. query one
   2. query two
-- After proposing queries, STOP and wait for human approval.
+  3. query three
+- After proposing queries, STOP and wait for human approval. Do not call any tools.
 - When approved queries arrive, call search_literature, then generate_figures, then write_report.
 - For write_report, pass: matrix_path, comparison_path, literature_results, figures_dir, output_path.\
 """
 
 VERBOSE = False
 
-
-# ------------------------------------------------------------------
-# Load tools
-# ------------------------------------------------------------------
 
 def load_tools() -> list[dict]:
     tools_path = PROJECT_ROOT / "tools" / "analyst_tools.json"
@@ -98,14 +90,13 @@ def load_tools() -> list[dict]:
 
 
 # ------------------------------------------------------------------
-# Terminal checkpoint
+# Terminal / cockpit checkpoint
 # ------------------------------------------------------------------
 
 def terminal_checkpoint_queries(proposed_text: str) -> list[str]:
-    """Display proposed queries in terminal (or cockpit) and let human edit/approve."""
+    """Display proposed queries (terminal or cockpit) and let human edit/approve."""
     queries = _parse_queries(proposed_text)
 
-    # Extract reasoning (non-query lines) to display before queries
     reasoning_lines = []
     for line in proposed_text.strip().split("\n"):
         stripped = line.strip()
@@ -119,21 +110,18 @@ def terminal_checkpoint_queries(proposed_text: str) -> list[str]:
 
     reasoning_text = " ".join(reasoning_lines)
 
-    # Emit reasoning to cockpit log
     if reasoning_text:
-        events.emit("nemotron_text", text=reasoning_text, agent="analyst")
+        events.emit("claude_text", text=reasoning_text, agent="analyst")
 
-    # Print reasoning
     if reasoning_lines:
         print()
-        print("  💬 Nemotron:")
+        print("  Reasoning:")
         for line in reasoning_lines:
             while len(line) > 76:
                 print(f"    {line[:76]}")
                 line = line[76:]
             print(f"    {line}")
 
-    # Cockpit mode: emit event and wait for HTTP approval
     if events.is_enabled():
         events.emit("checkpoint_queries", queries=queries, reasoning=reasoning_text)
         result = events.wait_for_approval("query_checkpoint", timeout=600.0)
@@ -193,15 +181,15 @@ def _parse_queries(text: str) -> list[str]:
 # Agent loop
 # ------------------------------------------------------------------
 
-def run_agent(matrix_path: str, task: dict, verbose: bool = False) -> dict:
+def run_agent(matrix_path: str, task: dict, verbose: bool = False, engine: Engine | None = None) -> dict:
     """Run the Analyst agent loop with comparative analysis."""
     verbose = verbose or VERBOSE
-    api_key = os.environ.get("NVIDIA_API_KEY", "") or API_KEY
-    tools = load_tools()
+    if engine is None:
+        engine = get_default_engine()
+
     output_dir = task.get("output_dir", "results/comparative")
     model_name = task.get("model_name", "unknown")
 
-    # Load matrix to build context message
     matrix = _load_json(matrix_path)
     ds_names = [ev["dataset_name"] for ev in matrix["evaluations"]]
     ds_summary = "\n".join(
@@ -224,19 +212,10 @@ def run_agent(matrix_path: str, task: dict, verbose: bool = False) -> dict:
         f"output_path=\"{output_dir}/report.md\"."
     )
 
-    messages = [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": user_msg},
-    ]
+    tools = load_tools()
+    engine.reset(system=SYSTEM_PROMPT, tools=tools, max_tokens=4096)
 
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {api_key}",
-    }
-
-    # Persistent connection — avoids TCP+TLS handshake on every turn
-    client = httpx.Client(headers=headers, timeout=120.0)
-
+    response = engine.send_user_message(user_msg)
     checkpoint_done = False
     final_result = None
 
@@ -244,157 +223,137 @@ def run_agent(matrix_path: str, task: dict, verbose: bool = False) -> dict:
         if verbose:
             print(f"--- Turn {turn} ---")
 
-        events.emit("api_call", provider="NVIDIA NIM", model=NIM_MODEL,
-                     endpoint=f"{NIM_BASE_URL}/chat/completions",
-                     turn=turn, agent="analyst")
-
-        payload = {
-            "model": NIM_MODEL,
-            "messages": messages,
-            "tools": tools,
-            "tool_choice": "auto",
-            "max_tokens": 1024,
-            "temperature": 0.1,
-        }
-
-        import time as _time
-        t0 = _time.monotonic()
-        resp = client.post(
-            f"{NIM_BASE_URL}/chat/completions",
-            json=payload,
-        )
-        resp.raise_for_status()
-        elapsed_ms = int((_time.monotonic() - t0) * 1000)
-        data = resp.json()
-
-        choice = data["choices"][0]
-        msg = choice["message"]
-        finish_reason = choice["finish_reason"]
-
-        usage = data.get("usage", {})
-        events.emit("api_response", provider="NVIDIA NIM", model=NIM_MODEL,
-                     turn=turn, finish_reason=finish_reason,
-                     elapsed_ms=elapsed_ms,
-                     prompt_tokens=usage.get("prompt_tokens"),
-                     completion_tokens=usage.get("completion_tokens"),
-                     tool_calls=len(msg.get("tool_calls", [])),
+        events.emit("api_call", provider=engine.provider_name, model=engine.model_name,
+                     endpoint="messages.create", turn=turn, agent="analyst")
+        events.emit("api_response", provider=engine.provider_name, model=engine.model_name,
+                     turn=turn, finish_reason=response.stop_reason,
+                     elapsed_ms=response.elapsed_ms,
+                     prompt_tokens=response.usage.get("input_tokens"),
+                     completion_tokens=response.usage.get("output_tokens"),
+                     tool_calls=len(response.tool_calls),
                      agent="analyst")
 
-        messages.append(msg)
+        # Execute tool calls (if any)
+        tool_results: list[ToolResult] = []
+        for call in response.tool_calls:
+            print(format_tool_call(call.name, call.arguments))
+            events.emit("tool_call", fn_name=call.name,
+                        summary=_extract_key_args(call.name, call.arguments),
+                        agent="analyst")
+            if verbose:
+                print(f"    Args: {json.dumps(call.arguments, indent=2)}")
 
-        # Handle tool calls
-        if msg.get("tool_calls"):
-            for tc in msg["tool_calls"]:
-                fn_name = tc["function"]["name"]
-                fn_args = json.loads(tc["function"]["arguments"])
+            result_str = execute_tool(call.name, call.arguments)
+            result_data = json.loads(result_str)
 
-                print(format_tool_call(fn_name, fn_args))
-                events.emit("tool_call", fn_name=fn_name, summary=_extract_key_args(fn_name, fn_args), agent="analyst")
-                if verbose:
-                    print(f"    Args: {json.dumps(fn_args, indent=2)}")
+            print(format_tool_result(call.name, result_data))
+            events.emit("tool_result", fn_name=call.name,
+                        summary=_summarize_result(call.name, result_data),
+                        agent="analyst")
 
-                result_str = execute_tool(fn_name, fn_args)
-                result_data = json.loads(result_str)
+            # Milestones
+            if call.name == "compare_baselines":
+                flags = result_data.get("flags", [])
+                events.emit("milestone", text=f"Baselines compared, {len(flags)} flags", agent="analyst")
+            elif call.name == "search_literature":
+                total = result_data.get("total_results", 0)
+                events.emit("milestone", text=f"{total} papers found", agent="analyst")
+            elif call.name == "generate_figures":
+                figs = result_data.get("figures", [])
+                events.emit("milestone", text=f"{len(figs)} figures generated", agent="analyst")
+            elif call.name == "write_report" and result_data.get("status") == "success":
+                wc = result_data.get("word_count", "?")
+                events.emit("milestone", text=f"Report written ({wc} words)", agent="analyst")
 
-                summary = _summarize_result(fn_name, result_data)
-                print(format_tool_result(fn_name, result_data))
-                events.emit("tool_result", fn_name=fn_name, summary=summary, agent="analyst")
+            if call.name == "search_literature":
+                lit_display = format_literature_results(result_data)
+                if lit_display:
+                    print(lit_display)
+                papers = []
+                for search in result_data.get("searches", []):
+                    for r in search.get("results", []):
+                        papers.append({"title": r.get("title", ""), "meta": r.get("url", "")})
+                if papers:
+                    events.emit("literature_results", papers=papers)
+            if call.name == "generate_figures":
+                events.emit("figures_generated", figures=result_data.get("figures", []))
+            if verbose:
+                print(f"    Raw: {json.dumps(result_data, indent=2)[:500]}")
 
-                # Milestones
-                if fn_name == "compare_baselines":
-                    flags = result_data.get("flags", [])
-                    events.emit("milestone", text=f"Baselines compared, {len(flags)} flags", agent="analyst")
-                elif fn_name == "search_literature":
-                    total = result_data.get("total_results", 0)
-                    events.emit("milestone", text=f"{total} papers found", agent="analyst")
-                elif fn_name == "generate_figures":
-                    figs = result_data.get("figures", [])
-                    events.emit("milestone", text=f"{len(figs)} figures generated", agent="analyst")
-                elif fn_name == "write_report" and result_data.get("status") == "success":
-                    wc = result_data.get("word_count", "?")
-                    events.emit("milestone", text=f"Report written ({wc} words)", agent="analyst")
-                if fn_name == "search_literature":
-                    lit_display = format_literature_results(result_data)
-                    if lit_display:
-                        print(lit_display)
-                    # Emit papers to cockpit
-                    papers = []
-                    for search in result_data.get("searches", []):
-                        for r in search.get("results", []):
-                            papers.append({"title": r.get("title", ""), "meta": r.get("url", "")})
-                    if papers:
-                        events.emit("literature_results", papers=papers)
-                if fn_name == "generate_figures":
-                    events.emit("figures_generated", figures=result_data.get("figures", []))
-                if verbose:
-                    print(f"    Raw: {json.dumps(result_data, indent=2)[:500]}")
+            if call.name == "write_report" and result_data.get("status") == "success":
+                final_result = result_data
 
-                if fn_name == "write_report" and result_data.get("status") == "success":
-                    final_result = result_data
+            tool_results.append(ToolResult(call_id=call.id, content=result_str))
 
-                messages.append({
-                    "role": "tool",
-                    "tool_call_id": tc["id"],
-                    "content": result_str,
-                })
+        # Checkpoint: model produced text + no tool calls + checkpoint not done -> propose queries
+        if not tool_results and not checkpoint_done and response.text and _parse_queries(response.text):
+            approved_queries = terminal_checkpoint_queries(response.text)
+            checkpoint_done = True
 
-        # Check for checkpoint
-        if finish_reason == "stop" and msg.get("content") and not checkpoint_done:
-            content = msg["content"]
-            if _parse_queries(content):
-                approved_queries = terminal_checkpoint_queries(content)
+            matrix_dir = Path(matrix_path)
+            if not matrix_dir.is_absolute():
+                matrix_dir = PROJECT_ROOT / matrix_dir
+            comparison_path = str(matrix_dir.parent / "comparison.json")
 
-                if approved_queries:
-                    checkpoint_done = True
-                    messages.append({
-                        "role": "user",
-                        "content": (
-                            f"The human has approved the following search queries:\n"
-                            + "\n".join(f"{i+1}. {q}" for i, q in enumerate(approved_queries))
-                            + f"\n\nPlease call search_literature with these queries, "
-                            f"then generate_figures with matrix_path=\"{matrix_path}\" "
-                            f"and output_dir=\"{output_dir}\", "
-                            f"then write_report with matrix_path=\"{matrix_path}\", "
-                            f"figures_dir=\"{output_dir}\", and "
-                            f"output_path=\"{output_dir}/report.md\"."
-                        ),
-                    })
-                    continue
-                else:
-                    checkpoint_done = True
-                    lit_path = Path(output_dir)
-                    if not lit_path.is_absolute():
-                        lit_path = PROJECT_ROOT / lit_path
-                    lit_path.mkdir(parents=True, exist_ok=True)
-                    lit_file = lit_path / "literature_results.json"
-                    with open(lit_file, "w") as f:
-                        json.dump({"status": "skipped", "searches": []}, f)
-                    messages.append({
-                        "role": "user",
-                        "content": (
-                            "The human skipped literature search. "
-                            f"Proceed to generate_figures with matrix_path=\"{matrix_path}\" "
-                            f"and output_dir=\"{output_dir}\", "
-                            f"then write_report with matrix_path=\"{matrix_path}\", "
-                            f"literature_results=\"{lit_file}\", "
-                            f"figures_dir=\"{output_dir}\", "
-                            f"output_path=\"{output_dir}/report.md\"."
-                        ),
-                    })
-                    continue
+            if approved_queries:
+                literature_path = str(matrix_dir.parent / "literature_results.json")
+                next_user = (
+                    "The human has approved the following search queries:\n"
+                    + "\n".join(f"{i+1}. {q}" for i, q in enumerate(approved_queries))
+                    + f"\n\nCall these tools in order:\n"
+                    f"1. search_literature with queries={json.dumps(approved_queries)}, output_dir=\"{output_dir}\"\n"
+                    f"2. generate_figures with matrix_path=\"{matrix_path}\", output_dir=\"{output_dir}\"\n"
+                    f"3. write_report with matrix_path=\"{matrix_path}\", "
+                    f"comparison_path=\"{comparison_path}\", "
+                    f"literature_results=\"{literature_path}\", "
+                    f"figures_dir=\"{output_dir}\", "
+                    f"output_path=\"{output_dir}/report.md\""
+                )
+            else:
+                lit_dir = Path(output_dir)
+                if not lit_dir.is_absolute():
+                    lit_dir = PROJECT_ROOT / lit_dir
+                lit_dir.mkdir(parents=True, exist_ok=True)
+                lit_file = lit_dir / "literature_results.json"
+                with open(lit_file, "w") as f:
+                    json.dump({"status": "skipped", "searches": []}, f)
+                next_user = (
+                    "The human skipped literature search.\n\n"
+                    f"Call these tools in order:\n"
+                    f"1. generate_figures with matrix_path=\"{matrix_path}\", output_dir=\"{output_dir}\"\n"
+                    f"2. write_report with matrix_path=\"{matrix_path}\", "
+                    f"comparison_path=\"{comparison_path}\", "
+                    f"literature_results=\"{lit_file}\", "
+                    f"figures_dir=\"{output_dir}\", "
+                    f"output_path=\"{output_dir}/report.md\""
+                )
 
-        # Final stop
-        if finish_reason == "stop" and checkpoint_done:
-            if msg.get("content"):
-                print(format_nemotron_text(msg["content"]))
-                events.emit("nemotron_text", text=msg["content"], agent="analyst")
+            response = engine.send_user_message(next_user)
+            continue
+
+        # No tool calls AND checkpoint already done -> we are finished
+        if not tool_results and checkpoint_done:
+            if response.text:
+                print(format_engine_text(engine.provider_name, response.text))
+                events.emit("claude_text", text=response.text, agent="analyst")
+            print(format_agent_complete("Analyst"))
+            events.emit("agent_complete", agent="Analyst")
+            break
+
+        # Continue: send tool results back
+        if tool_results:
+            response = engine.send_tool_results(tool_results)
+        else:
+            # No tool calls, no checkpoint trigger -> done (defensive)
+            if response.text:
+                print(format_engine_text(engine.provider_name, response.text))
+                events.emit("claude_text", text=response.text, agent="analyst")
             print(format_agent_complete("Analyst"))
             events.emit("agent_complete", agent="Analyst")
             break
     else:
-        print(f"  ⚠ Analyst: hit max turns ({MAX_TURNS})")
+        print(f"  Warning: Analyst hit max turns ({MAX_TURNS})")
 
-    client.close()
     return final_result or {"error": "No report generated"}
 
 
@@ -408,6 +367,17 @@ def _load_json(path: str) -> dict:
         p = PROJECT_ROOT / p
     with open(p) as f:
         return json.load(f)
+
+
+def _load_env():
+    env_path = PROJECT_ROOT / ".env"
+    if env_path.exists():
+        for line in env_path.read_text().splitlines():
+            if "=" in line and not line.startswith("#"):
+                key, val = line.split("=", 1)
+                key, val = key.strip(), val.strip()
+                if key and not os.environ.get(key):
+                    os.environ[key] = val
 
 
 # ------------------------------------------------------------------
@@ -432,23 +402,7 @@ def main():
     result = run_agent(matrix_path=args.matrix, task=task, verbose=args.verbose)
 
     if args.verbose:
-        print(f"\n{'='*60}")
-        print(f"ANALYST RESULT:")
-        print(json.dumps(result, indent=2))
-        print(f"{'='*60}")
-
-
-def _load_env():
-    global API_KEY
-    env_path = PROJECT_ROOT / ".env"
-    if env_path.exists():
-        for line in env_path.read_text().splitlines():
-            if "=" in line and not line.startswith("#"):
-                key, val = line.split("=", 1)
-                key, val = key.strip(), val.strip()
-                if key and not os.environ.get(key):
-                    os.environ[key] = val
-    API_KEY = os.environ.get("NVIDIA_API_KEY", API_KEY)
+        print(f"\n{'='*60}\nANALYST RESULT:\n{json.dumps(result, indent=2)}\n{'='*60}")
 
 
 if __name__ == "__main__":

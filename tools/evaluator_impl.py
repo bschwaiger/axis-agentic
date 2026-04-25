@@ -1,4 +1,9 @@
-"""Tool implementations for the Evaluator agent."""
+"""Tool implementations for the Evaluator agent.
+
+run_inference delegates to an InferenceAdapter (default: HTTPAdapter ->
+localhost:8321) so the model under test can be swapped without changing
+this file.
+"""
 from __future__ import annotations
 
 import csv
@@ -6,11 +11,9 @@ import json
 import math
 from pathlib import Path
 
-import httpx
-
 from cockpit import events as cockpit_events
+from inference import get_default_adapter
 
-INFERENCE_URL = "http://localhost:8321/predict"
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 
@@ -19,31 +22,29 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 # ------------------------------------------------------------------
 
 def run_inference(dataset_path: str, manifest_path: str, output_path: str) -> dict:
-    """Call local inference server for each study in the manifest, write predictions CSV."""
+    """Iterate the manifest and call the active inference adapter per study."""
     manifest = _read_manifest(manifest_path)
     dataset_dir = Path(dataset_path)
     if not dataset_dir.is_absolute():
         dataset_dir = PROJECT_ROOT / dataset_dir
+
+    adapter = get_default_adapter()
+    adapter.warmup()
 
     results = []
     errors = []
 
     from tqdm import tqdm
 
-    # Persistent connection to inference server — avoids TCP setup per study
-    inf_client = httpx.Client(timeout=60.0)
-
     total_studies = len(manifest)
     for i, row in enumerate(tqdm(manifest, desc="    Inference", unit="study",
                                   bar_format="    {l_bar}{bar:30}{r_bar}")):
         study_path = row["study_path"]
-        # Emit progress to cockpit every study
         cockpit_events.emit("inference_progress",
                             current=i + 1, total=total_studies,
                             study=study_path)
         label = int(row["label"])
 
-        # Find images in the study directory
         study_dir = dataset_dir / study_path
         if not study_dir.exists():
             errors.append(f"Study dir not found: {study_dir}")
@@ -57,35 +58,25 @@ def run_inference(dataset_path: str, manifest_path: str, output_path: str) -> di
             errors.append(f"No images in: {study_dir}")
             continue
 
-        # Use first image (MURA convention: one image per study for most)
         image_path = str(images[0])
-        # Make path relative to project root for the server
         try:
             rel_path = str(Path(image_path).relative_to(PROJECT_ROOT))
         except ValueError:
             rel_path = image_path
 
         try:
-            import time as _time
-            t0 = _time.monotonic()
-            resp = inf_client.post(
-                INFERENCE_URL,
-                json={"image_path": rel_path},
-            )
-            resp.raise_for_status()
-            pred = resp.json()
-            elapsed_ms = int((_time.monotonic() - t0) * 1000)
+            pred = adapter.predict(rel_path)
             cockpit_events.emit("inference_call", study=study_path,
-                                prediction=pred.get("prediction"),
-                                confidence=pred.get("confidence"),
-                                elapsed_ms=elapsed_ms,
-                                server=INFERENCE_URL)
+                                prediction=pred.label,
+                                confidence=pred.confidence,
+                                elapsed_ms=pred.elapsed_ms,
+                                server=adapter.name)
             results.append({
                 "study_path": study_path,
                 "ground_truth": label,
-                "prediction": pred["prediction"],
-                "confidence": pred["confidence"],
-                "findings": pred.get("findings", ""),
+                "prediction": pred.label,
+                "confidence": pred.confidence,
+                "findings": pred.findings or "",
             })
         except Exception as e:
             errors.append(f"Inference failed for {study_path}: {e}")
@@ -97,9 +88,8 @@ def run_inference(dataset_path: str, manifest_path: str, output_path: str) -> di
                 "findings": f"ERROR: {e}",
             })
 
-    inf_client.close()
+    adapter.close()
 
-    # Write predictions CSV
     out = Path(output_path)
     if not out.is_absolute():
         out = PROJECT_ROOT / out
@@ -113,7 +103,7 @@ def run_inference(dataset_path: str, manifest_path: str, output_path: str) -> di
     return {
         "status": "success",
         "predictions_written": len(results),
-        "errors": errors[:10],  # cap error list
+        "errors": errors[:10],
         "error_count": len(errors),
         "output_path": str(out),
     }
@@ -130,16 +120,13 @@ def validate_results(predictions_path: str, manifest_path: str) -> dict:
 
     issues = []
 
-    # Check count match
     if len(preds) != len(manifest):
         issues.append(f"Count mismatch: {len(preds)} predictions vs {len(manifest)} manifest entries")
 
-    # Check for null predictions
     null_preds = [p for p in preds if p["prediction"] is None or p["prediction"] == ""]
     if null_preds:
         issues.append(f"{len(null_preds)} null/empty predictions")
 
-    # Check prediction distribution
     valid_preds = [int(p["prediction"]) for p in preds if p["prediction"] is not None and p["prediction"] != ""]
     if valid_preds:
         pos = sum(valid_preds)
@@ -204,7 +191,6 @@ def compute_metrics(predictions_path: str, manifest_path: str, output_path: str)
     mcc_denom = math.sqrt(mcc_prod) if mcc_prod > 0 else 1
     mcc = (tp * tn - fp * fn) / mcc_denom
 
-    # Wilson CIs
     n_pos, n_neg = tp + fn, tn + fp
     n_pred_pos, n_pred_neg = tp + fp, tn + fn
 
@@ -278,7 +264,7 @@ def _read_predictions(path: str) -> list[dict]:
 
 
 # ------------------------------------------------------------------
-# Dispatch — called by the agent loop
+# Dispatch
 # ------------------------------------------------------------------
 
 TOOL_FUNCTIONS = {
