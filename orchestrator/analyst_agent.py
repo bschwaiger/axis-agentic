@@ -93,8 +93,12 @@ def load_tools() -> list[dict]:
 # Terminal / cockpit checkpoint
 # ------------------------------------------------------------------
 
-def terminal_checkpoint_queries(proposed_text: str) -> list[str]:
-    """Display proposed queries (terminal or cockpit) and let human edit/approve."""
+def terminal_checkpoint_queries(proposed_text: str) -> tuple[list[str], str]:
+    """Display proposed queries (terminal or cockpit), let human edit/approve.
+
+    Returns (approved_queries, reasoning_text). reasoning_text is what was
+    emitted to the cockpit so the caller can dedupe later emits against it.
+    """
     queries = _parse_queries(proposed_text)
 
     reasoning_lines = []
@@ -127,10 +131,10 @@ def terminal_checkpoint_queries(proposed_text: str) -> list[str]:
         result = events.wait_for_approval("query_checkpoint", timeout=600.0)
         if result is None or result.get("action") == "skip":
             print("  Literature search skipped.")
-            return []
+            return [], reasoning_text
         approved = result.get("queries", queries)
         print(f"  Approved {len(approved)} queries (via cockpit).")
-        return approved
+        return approved, reasoning_text
 
     print(format_checkpoint("Review proposed PubMed queries below"))
     print()
@@ -144,7 +148,7 @@ def terminal_checkpoint_queries(proposed_text: str) -> list[str]:
 
     if choice == "s":
         print("  Literature search skipped.")
-        return []
+        return [], reasoning_text
     elif choice == "e":
         print("  Enter your queries, one per line. Empty line to finish:")
         custom = []
@@ -155,11 +159,28 @@ def terminal_checkpoint_queries(proposed_text: str) -> list[str]:
             custom.append(line)
         if custom:
             print(f"  Using {len(custom)} custom queries.")
-            return custom
+            return custom, reasoning_text
         print("  No queries entered, using original proposals.")
 
     print(f"  Approved {len(queries)} queries.")
-    return queries
+    return queries, reasoning_text
+
+
+def _is_recap(new_text: str, prior_text: str, prefix_len: int = 60) -> bool:
+    """True if new_text opens with the same phrase the model already said.
+
+    The model often opens its post-write_report summary with a recap that
+    duplicates the reasoning text emitted at the query checkpoint. Catch
+    that by checking whether the start of new_text matches prior_text.
+    """
+    if not prior_text:
+        return False
+    norm_new = " ".join(new_text.split()).lower()
+    norm_prior = " ".join(prior_text.split()).lower()
+    n = min(prefix_len, len(norm_prior))
+    if n < 20:
+        return False
+    return norm_new[:n] == norm_prior[:n]
 
 
 def _parse_queries(text: str) -> list[str]:
@@ -218,6 +239,7 @@ def run_agent(matrix_path: str, task: dict, verbose: bool = False, engine: Engin
     response = engine.send_user_message(user_msg)
     checkpoint_done = False
     final_result = None
+    last_emitted_text = ""
 
     for turn in range(1, MAX_TURNS + 1):
         if verbose:
@@ -287,7 +309,7 @@ def run_agent(matrix_path: str, task: dict, verbose: bool = False, engine: Engin
 
         # Checkpoint: model produced text + no tool calls + checkpoint not done -> propose queries
         if not tool_results and not checkpoint_done and response.text and _parse_queries(response.text):
-            approved_queries = terminal_checkpoint_queries(response.text)
+            approved_queries, last_emitted_text = terminal_checkpoint_queries(response.text)
             checkpoint_done = True
 
             matrix_dir = Path(matrix_path)
@@ -333,7 +355,7 @@ def run_agent(matrix_path: str, task: dict, verbose: bool = False, engine: Engin
 
         # No tool calls AND checkpoint already done -> we are finished
         if not tool_results and checkpoint_done:
-            if response.text:
+            if response.text and not _is_recap(response.text, last_emitted_text):
                 print(format_engine_text(engine.provider_name, response.text))
                 events.emit("claude_text", text=response.text, agent="analyst")
             print(format_agent_complete("Analyst"))
@@ -345,7 +367,7 @@ def run_agent(matrix_path: str, task: dict, verbose: bool = False, engine: Engin
             response = engine.send_tool_results(tool_results)
         else:
             # No tool calls, no checkpoint trigger -> done (defensive)
-            if response.text:
+            if response.text and not _is_recap(response.text, last_emitted_text):
                 print(format_engine_text(engine.provider_name, response.text))
                 events.emit("claude_text", text=response.text, agent="analyst")
             print(format_agent_complete("Analyst"))
