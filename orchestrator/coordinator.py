@@ -28,59 +28,22 @@ from orchestrator.analyst_agent import run_agent as run_analyst  # noqa: E402
 from orchestrator.engine import get_default_engine  # noqa: E402
 from orchestrator.formatting import format_checkpoint  # noqa: E402
 from cockpit import events  # noqa: E402
+from axis_agentic.profile import (  # noqa: E402
+    load_profile, build_adapter_for_model,
+)
+from inference import set_default_adapter  # noqa: E402
 
 
 # ------------------------------------------------------------------
-# Available models and datasets
+# Available models and datasets — sourced from the profile
 # ------------------------------------------------------------------
+# Module-level constants for backward compat with cockpit/app.py callers.
+# Edit ~/.config/axis-agentic/profile.yaml to change them, or run
+# `axis-agentic init`.
 
-AVAILABLE_MODELS = [
-    {
-        "name": "AXIS-MURA-v1 4-bit",
-        "id": "axis-mura-v1-4bit",
-        "description": "LoRA fine-tuned MedGemma 1.5 4B, MLX 4-bit quantized",
-        "baseline_values": {
-            "mcc": 0.637,
-            "sensitivity": 0.743,
-            "specificity": 0.920,
-        },
-        "baseline_source": "AXIS-MURA-v1 on full MURA valid set (n=896)",
-    },
-    {
-        "name": "MedGemma 1.5 4B base",
-        "id": "medgemma-1.5-4b-base",
-        "description": "Unmodified base model (no LoRA), MLX 4-bit quantized",
-        "baseline_values": {},
-        "baseline_source": "",
-    },
-]
-
-AVAILABLE_DATASETS = [
-    {
-        "name": "eval-018",
-        "description": "Demo subset (18 studies, ~2 min)",
-        "dataset_path": "data/eval-018",
-        "manifest_path": "data/eval-018/manifest.csv",
-    },
-    {
-        "name": "eval-020",
-        "description": "Debug subset (20 studies, ~2 min)",
-        "dataset_path": "data/eval-020",
-        "manifest_path": "data/eval-020/manifest.csv",
-    },
-    {
-        "name": "eval-100",
-        "description": "Demo subset (100 studies, ~10 min)",
-        "dataset_path": "data/eval-100",
-        "manifest_path": "data/eval-100/manifest.csv",
-    },
-    {
-        "name": "eval-300",
-        "description": "Full evaluation (300 studies, ~30 min)",
-        "dataset_path": "data/eval-300",
-        "manifest_path": "data/eval-300/manifest.csv",
-    },
-]
+_PROFILE = load_profile()
+AVAILABLE_MODELS = _PROFILE.get("models", [])
+AVAILABLE_DATASETS = _PROFILE.get("datasets", [])
 
 
 # ------------------------------------------------------------------
@@ -142,9 +105,10 @@ def interactive_setup() -> dict:
 
     return {
         "model_name": model["id"],
+        "model_entry": model,
         "datasets": datasets,
-        "baseline_values": model["baseline_values"],
-        "baseline_source": model["baseline_source"],
+        "baseline_values": model.get("baseline_values", {}),
+        "baseline_source": model.get("baseline_source", ""),
     }
 
 
@@ -222,10 +186,20 @@ def run_pipeline(config: dict, verbose: bool = False):
 
     engine = get_default_engine()
 
+    # Activate the adapter declared by the model entry (MLX / HTTP / etc.)
+    model_entry = config.get("model_entry")
+    if model_entry and model_entry.get("adapter"):
+        adapter = build_adapter_for_model(model_entry)
+        set_default_adapter(adapter)
+        adapter_label = adapter.name
+    else:
+        adapter_label = "(default)"
+
     print(f"  Model:    {model_name}")
     print(f"  Datasets: {ds_list} ({n_datasets} total)")
     print(f"  Output:   {output_dir}")
     print(f"  Engine:   {engine.provider_name} ({engine.model_name})")
+    print(f"  Adapter:  {adapter_label}")
     print()
 
     events.emit("pipeline_start",

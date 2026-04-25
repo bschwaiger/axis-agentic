@@ -505,6 +505,8 @@ let pipelineRunning = false;
 let configData = null;
 let startTime = null;
 let _queryCount = 0;
+let currentProvider = null;
+let currentAdapter = null;
 
 // Map step id -> milestone container element
 let stepMilestones = {};
@@ -527,7 +529,11 @@ function renderSetup() {
     const li = document.createElement('li');
     li.innerHTML = `<div class="name">${m.name}</div><div class="desc">${m.description}</div>`;
     if (i === selectedModel) li.classList.add('selected');
-    li.onclick = () => { selectedModel = i; renderSetup(); };
+    li.onclick = () => {
+      // Click selected model again to deselect
+      selectedModel = (selectedModel === i) ? null : i;
+      renderSetup();
+    };
     ml.appendChild(li);
   });
   const dl = $('#datasetList');
@@ -539,12 +545,12 @@ function renderSetup() {
     li.onclick = () => {
       if (selectedDatasets.has(i)) selectedDatasets.delete(i);
       else selectedDatasets.add(i);
-      if (selectedDatasets.size === 0) selectedDatasets.add(i);
       renderSetup();
     };
     dl.appendChild(li);
   });
-  $('#startBtn').disabled = false;
+  // Run requires at least one model AND one dataset selected
+  $('#startBtn').disabled = (selectedModel === null) || (selectedDatasets.size === 0);
 }
 
 $('#startBtn').addEventListener('click', async () => {
@@ -599,6 +605,8 @@ function handleEvent(evt) {
       $('#progressBar').style.display = 'block';
       enableControls();
       setProgress(0, 'Initializing...');
+      currentProvider = null;
+      currentAdapter = null;
       dynamicSteps = [{ id: 'setup', label: 'Setup', status: 'done', milestones: [] }];
       (evt.datasets || []).forEach((ds, i) => {
         dynamicSteps.push({ id: `eval_${i}`, label: `Evaluator: ${ds}`, status: 'pending', milestones: [] });
@@ -634,6 +642,7 @@ function handleEvent(evt) {
       break;
 
     case 'api_call':
+      if (evt.provider) currentProvider = evt.provider;
       addLog('api-call', `${evt.provider} \u2192 ${shortModel(evt.model)} (turn ${evt.turn})`);
       break;
 
@@ -645,10 +654,12 @@ function handleEvent(evt) {
       break;
 
     case 'tool_call':
-      addLog('tool-call', `Claude calls ${evt.fn_name}.py (${evt.summary || ''})`);
-      if (evt.fn_name === 'run_inference') setProgress(0, 'Running inference...');
-      else if (evt.fn_name === 'search_literature') setProgress(-1, 'Searching PubMed...');
-      else setProgress(-1, evt.fn_name.replace(/_/g, ' ') + '...');
+      { const who = currentProvider || 'Engine';
+        addLog('tool-call', `${who} calls ${evt.fn_name}.py (${evt.summary || ''})`);
+        if (evt.fn_name === 'run_inference') setProgress(0, 'Running inference...');
+        else if (evt.fn_name === 'search_literature') setProgress(-1, 'Searching PubMed...');
+        else setProgress(-1, evt.fn_name.replace(/_/g, ' ') + '...');
+      }
       break;
 
     case 'tool_result':
@@ -657,18 +668,22 @@ function handleEvent(evt) {
 
     case 'inference_progress':
       { const pct = Math.round((evt.current / evt.total) * 100);
-        setProgress(pct, `MedGemma inference: ${evt.current}/${evt.total}`);
+        const adapter = currentAdapter || 'Inference adapter';
+        setProgress(pct, `${adapter}: ${evt.current}/${evt.total}`);
         if (evt.current === 1 || evt.current === evt.total || evt.current % 10 === 0)
-          addLog('info-entry', `Inference server (localhost:8321): ${evt.current}/${evt.total} studies`);
+          addLog('info-entry', `${adapter}: ${evt.current}/${evt.total} studies`);
       }
       break;
 
-    case 'tavily_search':
+    case 'inference_call':
+      // Track adapter label for the progress bar; no log line per study
+      if (evt.server) currentAdapter = evt.server;
+      break;
+
     case 'web_search':
       addLog('api-call', `Web Search \u2192 PubMed "${evt.query}" (${evt.query_index}/${evt.total_queries})`);
       break;
 
-    case 'tavily_result':
     case 'web_search_result':
       if (evt.error) addLog('error-entry', `Web Search: ${evt.error}`);
       else addLog('api-response', `Web Search \u2190 ${evt.hits} papers (${evt.elapsed_ms}ms)`);

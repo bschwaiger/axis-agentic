@@ -112,9 +112,10 @@ async def start_pipeline(request: Request):
 
     config = {
         "model_name": model["id"],
+        "model_entry": model,
         "datasets": datasets,
-        "baseline_values": model["baseline_values"],
-        "baseline_source": model["baseline_source"],
+        "baseline_values": model.get("baseline_values", {}),
+        "baseline_source": model.get("baseline_source", ""),
     }
 
     events.reset_controls()
