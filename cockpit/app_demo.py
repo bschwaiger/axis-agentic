@@ -31,6 +31,11 @@ from cockpit import events  # noqa: E402
 
 COCKPIT_DIR = Path(__file__).resolve().parent
 
+# Drop the inherited `/` route from cockpit.app — FastAPI dispatches to the
+# first matching route, so without this the no-banner index() wins and the
+# demo banner never injects.
+app.router.routes = [r for r in app.router.routes if getattr(r, "path", None) != "/"]
+
 DEMO_BANNER_HTML = """\
 <div id="demoBanner" style="
   position: fixed; top: 0; left: 0; right: 0; z-index: 9999;
