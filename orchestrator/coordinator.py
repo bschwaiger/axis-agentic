@@ -207,6 +207,19 @@ def run_pipeline(config: dict, verbose: bool = False):
                 datasets=[d["name"] for d in datasets],
                 output_dir=output_dir)
 
+    # Bring up local services the engine + adapter depend on (Ollama,
+    # AXIS inference server, …). Cloud providers are no-ops.
+    from axis_agentic.services import ensure_engine_ready, ensure_adapter_ready
+    if not ensure_engine_ready(engine):
+        events.emit("pipeline_error",
+                     error="Engine service did not become ready. See log above.")
+        return
+    if model_entry and model_entry.get("adapter"):
+        if not ensure_adapter_ready(adapter):
+            events.emit("pipeline_error",
+                         error="Adapter service did not become ready. See log above.")
+            return
+
     # Phase 1: Evaluator per dataset
     matrix = {
         "model_name": model_name,

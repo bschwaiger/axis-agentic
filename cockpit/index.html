@@ -779,9 +779,8 @@
     <div id="wizardView" hidden>
       <div class="wizard-progress" id="wizardProgress">
         <span data-step="engine" class="active">1. Engine</span>
-        <span data-step="adapter">2. Adapter</span>
-        <span data-step="models">3. Models</span>
-        <span data-step="datasets">4. Datasets</span>
+        <span data-step="models">2. Models</span>
+        <span data-step="datasets">3. Datasets</span>
       </div>
 
       <!-- Step: Engine -->
@@ -820,7 +819,7 @@
         </div>
         <div class="wizard-nav">
           <button class="btn-secondary" onclick="cancelWizard()">Cancel</button>
-          <button class="btn btn-primary" onclick="wizardGoto('adapter')">Next →</button>
+          <button class="btn btn-primary" onclick="wizardGoto('models')">Next →</button>
         </div>
       </div>
 
@@ -867,7 +866,7 @@
         <ul class="registry-list" id="wizModelsList"></ul>
         <button class="btn-secondary" onclick="openAddModelModal()">+ Add model</button>
         <div class="wizard-nav">
-          <button class="btn-secondary" onclick="wizardGoto('adapter')">← Back</button>
+          <button class="btn-secondary" onclick="wizardGoto('engine')">← Back</button>
           <button class="btn btn-primary" onclick="wizardGoto('datasets')">Next →</button>
         </div>
       </div>
@@ -1145,6 +1144,29 @@ function handleEvent(evt) {
       dynamicSteps.push({ id: 'results', label: 'Results', status: 'pending', milestones: [] });
       renderSteps();
       addLog('info-entry', `Pipeline started \u2014 ${evt.model} on ${(evt.datasets||[]).join(', ')}`);
+      break;
+
+    case 'service_check':
+      addLog('info-entry', `\u25cb Checking ${evt.service}\u2026`);
+      setProgress(-1, `Checking ${evt.service}\u2026`);
+      break;
+
+    case 'service_starting':
+      addLog('info-entry', `\u25b6 Starting ${evt.service}${evt.action ? ' \u2014 ' + evt.action : ''}\u2026`);
+      setProgress(-1, `Starting ${evt.service}\u2026`);
+      break;
+
+    case 'service_progress':
+      addLog('info-entry', `  \u2026 ${evt.service}: ${evt.text}`);
+      break;
+
+    case 'service_ready':
+      addLog('info-entry', `\u2713 ${evt.service} ready${evt.detail ? ' (' + evt.detail + ')' : ''}`);
+      break;
+
+    case 'service_failed':
+      addLog('error-entry', `\u2717 ${evt.service}: ${evt.error}`);
+      setStatus('Error', 'error');
       break;
 
     case 'evaluator_start':
@@ -1771,7 +1793,7 @@ async function applyProfile(profile, { skipSave = false, label = '' }) {
 
 // ----- Wizard step navigation -----
 
-const WIZARD_STEPS = ['engine', 'adapter', 'models', 'datasets'];
+const WIZARD_STEPS = ['engine', 'models', 'datasets'];
 
 function wizardGoto(step) {
   WIZARD_STEPS.forEach(s => {
@@ -1798,10 +1820,10 @@ function wizardGoto(step) {
 function cancelWizard() { backToWelcome(); }
 
 async function wizardFinish() {
-  // Capture step 1 + 2 from form fields (in case user didn't navigate)
+  // Capture engine selection from form fields (in case user didn't navigate)
   if (!_engineCaptured) captureWizardEngine();
-  if (!_adapterCaptured) captureWizardAdapter();
-  // Save profile to disk and apply
+  // Save profile to disk and apply (this also reloads the coordinator
+  // so AVAILABLE_MODELS / AVAILABLE_DATASETS pick up the new registry)
   await applyProfile(wizardProfile, { skipSave: false, label: 'Configured (saved to profile)' });
 }
 
