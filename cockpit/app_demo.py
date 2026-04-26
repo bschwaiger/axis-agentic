@@ -85,7 +85,7 @@ def main():
     print(f"  Inference is synthetic — no server needed.")
     print(f"  Open in browser to start an evaluation run.\n")
 
-    uvicorn.run(app, host=args.host, port=args.port, log_level="warning")
+    uvicorn.run(app, host=args.host, port=args.port, log_level="info", access_log=True)
 
 
 if __name__ == "__main__":

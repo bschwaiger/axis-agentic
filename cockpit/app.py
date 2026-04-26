@@ -235,26 +235,31 @@ async def browse(path: str = ""):
     """List subdirectories + files at `path`. Defaults to $HOME.
 
     Returns: { path, parent, entries: [{name, kind: 'dir'|'file', size?}] }
-    Used by the model-path picker modal.
+    Used by the model-path picker modal. Any unhandled exception is
+    caught and returned as a JSON error so the client can render it.
     """
-    import os
+    import traceback
     from pathlib import Path as P
 
-    target = P(path).expanduser() if path else P.home()
     try:
-        target = target.resolve()
-    except Exception:
-        return JSONResponse({"error": f"Cannot resolve {path!r}"}, status_code=400)
+        target = P(path).expanduser() if path else P.home()
+        try:
+            target = target.resolve()
+        except Exception as e:
+            return JSONResponse({"error": f"Cannot resolve {path!r}: {e}"}, status_code=400)
 
-    if not target.exists():
-        return JSONResponse({"error": f"Path not found: {target}"}, status_code=404)
-    if not target.is_dir():
-        # User clicked a file — return the parent so the modal can show siblings
-        target = target.parent
+        if not target.exists():
+            return JSONResponse({"error": f"Path not found: {target}"}, status_code=404)
+        if not target.is_dir():
+            target = target.parent
 
-    entries = []
-    try:
-        for child in sorted(target.iterdir(), key=lambda p: (not p.is_dir(), p.name.lower())):
+        entries = []
+        try:
+            children = sorted(target.iterdir(), key=lambda p: (not p.is_dir(), p.name.lower()))
+        except PermissionError:
+            return JSONResponse({"error": f"Permission denied: {target}"}, status_code=403)
+
+        for child in children:
             if child.name.startswith("."):
                 continue
             try:
@@ -268,8 +273,13 @@ async def browse(path: str = ""):
                 entries.append(entry)
             except (PermissionError, OSError):
                 continue
-    except PermissionError:
-        return JSONResponse({"error": f"Permission denied: {target}"}, status_code=403)
+    except Exception as e:
+        # Anything else — make sure the client sees a real message
+        traceback.print_exc()
+        return JSONResponse(
+            {"error": f"{type(e).__name__}: {e}"},
+            status_code=500,
+        )
 
     parent = str(target.parent) if target.parent != target else None
     return JSONResponse({
@@ -333,7 +343,7 @@ def main():
     print(f"  Cockpit: http://{args.host}:{args.port}")
     print(f"  Open in browser to start an evaluation run.\n")
 
-    uvicorn.run(app, host=args.host, port=args.port, log_level="warning")
+    uvicorn.run(app, host=args.host, port=args.port, log_level="info", access_log=True)
 
 
 if __name__ == "__main__":

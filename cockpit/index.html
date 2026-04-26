@@ -2122,21 +2122,31 @@ async function openFileBrowser(targetFieldId) {
 function closeFileBrowser() { $('#fileBrowserModal').hidden = true; }
 
 async function fbNavigate(path) {
-  let r, raw;
+  const showError = (msg) => {
+    console.error('[file browser]', msg);
+    $('#fbPath').textContent = '⚠ ' + msg;
+    $('#fbList').innerHTML = `<div class="fb-entry" style="color:var(--red)">${msg}</div>`;
+  };
+
+  let r, raw, body;
   try {
     raw = await fetch('/browse?path=' + encodeURIComponent(path));
-    if (!raw.ok) {
-      $('#fbList').innerHTML = `<div class="fb-entry">HTTP ${raw.status} — ${await raw.text()}</div>`;
-      return;
-    }
-    r = await raw.json();
+    body = await raw.text();
   } catch (e) {
-    $('#fbList').innerHTML = `<div class="fb-entry">Network error: ${e.message}</div>`;
-    return;
+    return showError(`Network error: ${e.message}`);
+  }
+  if (!raw.ok) {
+    let detail = body;
+    try { detail = JSON.parse(body).error || body; } catch (_) {}
+    return showError(`HTTP ${raw.status}: ${detail || '(no body)'}`);
+  }
+  try {
+    r = JSON.parse(body);
+  } catch (e) {
+    return showError(`Invalid JSON from /browse: ${body.slice(0, 200)}`);
   }
   if (r.error) {
-    $('#fbList').innerHTML = `<div class="fb-entry">${r.error}</div>`;
-    return;
+    return showError(r.error);
   }
   _fbCurrentPath = r.path;
   $('#fbPath').textContent = r.path;
