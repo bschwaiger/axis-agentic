@@ -332,6 +332,13 @@ def main():
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args()
 
+    # Force line-buffered stdout so the pipeline's banner + per-step prints
+    # actually appear in real time even when the user runs without -u.
+    try:
+        sys.stdout.reconfigure(line_buffering=True)
+    except Exception:
+        pass
+
     _kill_port(args.port)
     events.enable()
     _load_env()

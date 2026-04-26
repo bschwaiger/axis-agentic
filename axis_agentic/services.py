@@ -34,6 +34,15 @@ DEFAULT_STARTUP_TIMEOUT_S = 30
 DEFAULT_PULL_TIMEOUT_S = 600  # model pulls can be slow
 
 
+def _human_bytes(n: int) -> str:
+    """1234567 -> '1.2 MB'. Used in progress lines."""
+    for unit in ("B", "KB", "MB", "GB", "TB"):
+        if n < 1024:
+            return f"{n:.1f} {unit}" if unit != "B" else f"{n} B"
+        n = n / 1024
+    return f"{n:.1f} PB"
+
+
 # ----------------------------------------------------------------------
 # Ollama
 # ----------------------------------------------------------------------
@@ -91,7 +100,11 @@ class OllamaService:
             return False
 
     def pull_model(self, timeout_s: int = DEFAULT_PULL_TIMEOUT_S) -> bool:
-        """Pull the configured model. Blocks until pull completes or fails."""
+        """Pull the configured model. Blocks until pull completes or fails.
+
+        Throttles per-status emits to once per second so the cockpit feed
+        doesn't get flooded with thousands of byte-progress lines.
+        """
         events.emit("service_starting", service=self.label, action=f"pull {self._model}")
         try:
             with httpx.stream(
@@ -101,6 +114,7 @@ class OllamaService:
             ) as r:
                 r.raise_for_status()
                 last_status = ""
+                last_emit = 0.0
                 for line in r.iter_lines():
                     if not line:
                         continue
@@ -110,9 +124,18 @@ class OllamaService:
                     except Exception:
                         continue
                     status = data.get("status", "")
-                    if status and status != last_status:
-                        events.emit("service_progress", service=self.label, text=status)
+                    total = data.get("total")
+                    completed = data.get("completed")
+                    text = status
+                    if total and completed:
+                        pct = (completed / total) * 100
+                        text = f"{status} — {_human_bytes(completed)}/{_human_bytes(total)} ({pct:.0f}%)"
+                    now = time.monotonic()
+                    # Emit on status change (immediate) OR ~once per second for byte-progress
+                    if (status and status != last_status) or (now - last_emit > 1.0):
+                        events.emit("service_progress", service=self.label, text=text)
                         last_status = status
+                        last_emit = now
                     if data.get("error"):
                         events.emit("service_failed", service=self.label, error=data["error"])
                         return False

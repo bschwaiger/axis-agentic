@@ -130,22 +130,30 @@ def profile_exists(path: Path | None = None) -> bool:
 def apply_engine_env(profile: dict[str, Any]) -> None:
     """Set AXIS_ENGINE_* env vars from profile so build_engine() sees them.
 
-    Only sets vars that aren't already in the environment (env wins).
+    Always overwrites — switching from Anthropic to Ollama in the wizard
+    must update the live env, not be a no-op because AXIS_ENGINE was
+    already set from a previous wizard run in the same process.
+    Stale values for the *other* engine kind are also cleared.
     """
     eng = profile.get("engine", {})
     kind = eng.get("kind", "anthropic")
-    os.environ.setdefault("AXIS_ENGINE", kind)
+    os.environ["AXIS_ENGINE"] = kind
 
     if kind in {"openai", "openai-compat", "openai_compat"}:
         if eng.get("base_url"):
-            os.environ.setdefault("AXIS_ENGINE_OPENAI_BASE_URL", eng["base_url"])
+            os.environ["AXIS_ENGINE_OPENAI_BASE_URL"] = eng["base_url"]
+        else:
+            os.environ.pop("AXIS_ENGINE_OPENAI_BASE_URL", None)
         if eng.get("model"):
-            os.environ.setdefault("AXIS_ENGINE_OPENAI_MODEL", eng["model"])
+            os.environ["AXIS_ENGINE_OPENAI_MODEL"] = eng["model"]
         if eng.get("api_key"):
-            os.environ.setdefault("AXIS_ENGINE_OPENAI_API_KEY", eng["api_key"])
+            os.environ["AXIS_ENGINE_OPENAI_API_KEY"] = eng["api_key"]
     elif kind == "anthropic":
         if eng.get("model"):
-            os.environ.setdefault("ANTHROPIC_MODEL", eng["model"])
+            os.environ["ANTHROPIC_MODEL"] = eng["model"]
+        # Clear any leftover OpenAI-compat env so build_engine doesn't pick it
+        for k in ("AXIS_ENGINE_OPENAI_BASE_URL", "AXIS_ENGINE_OPENAI_MODEL", "AXIS_ENGINE_OPENAI_API_KEY"):
+            os.environ.pop(k, None)
 
 
 def build_adapter_for_model(model_entry: dict[str, Any]):

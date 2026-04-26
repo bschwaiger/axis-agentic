@@ -72,6 +72,11 @@ def main():
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args()
 
+    try:
+        sys.stdout.reconfigure(line_buffering=True)
+    except Exception:
+        pass
+
     _kill_port(args.port)
     events.enable()
     _load_env()
