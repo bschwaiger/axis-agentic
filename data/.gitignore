@@ -1,0 +1,7 @@
+# Bundled demo data is tracked.
+# Anything else under data/ is your own — gitignored to keep the repo
+# from accidentally committing user datasets.
+*
+!.gitignore
+!demo/
+!demo/*

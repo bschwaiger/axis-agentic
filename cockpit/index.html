@@ -1,0 +1,2234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AXIS Agentic Cockpit</title>
+<style>
+  :root {
+    --bg: #f5f5f7;
+    --surface: #ffffff;
+    --surface2: #fafafa;
+    --border: #e5e5ea;
+    --text: #1d1d1f;
+    --text-dim: #86868b;
+    --accent: #0071e3;
+    --accent-light: #e8f2fd;
+    --green: #34c759;
+    --green-light: #eaf9ee;
+    --yellow: #ff9f0a;
+    --yellow-light: #fff8ed;
+    --red: #ff3b30;
+    --red-light: #fff0ef;
+    --purple: #af52de;
+    --purple-light: #f8f0fc;
+    --orange: #9a6e3a;
+    --orange-light: #fdf6ee;
+    --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', Roboto, Helvetica, Arial, sans-serif;
+    --font-mono: 'SF Mono', 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'Consolas', monospace;
+    --radius: 10px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ---- Two-panel layout ---- */
+  .layout {
+    display: flex;
+    min-height: 100vh;
+  }
+
+  /* ---- Left sidebar: sticky ---- */
+  .sidebar {
+    width: 280px;
+    flex-shrink: 0;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+  .sidebar-header {
+    padding: 20px 20px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .sidebar-header h1 {
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+  }
+  .sidebar-header h1 span { color: var(--accent); }
+  .sidebar-status {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-top: 4px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .status-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--border);
+    flex-shrink: 0;
+  }
+  .status-dot.connected { background: var(--green); }
+  .status-dot.running { background: var(--accent); animation: pulse 1.5s infinite; }
+  .status-dot.error { background: var(--red); }
+  @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
+
+  .sidebar-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: var(--text-dim);
+    padding: 16px 20px 8px;
+  }
+
+  /* ---- Pipeline steps ---- */
+  .steps { padding: 0 20px 16px; flex: 1; }
+  .step {
+    display: flex;
+    gap: 12px;
+    padding: 8px 0;
+    position: relative;
+  }
+  /* Vertical connector line */
+  .step:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    left: 10px;
+    top: 32px;
+    bottom: -8px;
+    width: 2px;
+    background: var(--border);
+  }
+  .step:not(:last-child).step-done::after { background: var(--green); }
+
+  .step-dot {
+    width: 22px; height: 22px; border-radius: 50%;
+    border: 2px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700;
+    flex-shrink: 0;
+    z-index: 1;
+    background: var(--surface);
+    transition: all 0.2s;
+  }
+  .step-dot.pending { border-color: var(--border); color: var(--border); }
+  .step-dot.running { border-color: var(--accent); color: var(--accent); animation: pulse 1.5s infinite; }
+  .step-dot.done { border-color: var(--green); background: var(--green); color: white; }
+  .step-dot.error { border-color: var(--red); background: var(--red); color: white; }
+
+  .step-content { flex: 1; min-width: 0; }
+  .step-label { font-size: 14px; font-weight: 500; }
+  .step-detail { font-size: 12px; color: var(--text-dim); margin-top: 1px; }
+  .step-milestones { margin-top: 4px; }
+  .milestone {
+    font-size: 11px;
+    color: var(--text-dim);
+    padding: 1px 0;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .milestone::before {
+    content: '';
+    width: 4px; height: 4px;
+    border-radius: 50%;
+    background: var(--green);
+    flex-shrink: 0;
+  }
+
+  /* ---- Progress bar in sidebar ---- */
+  .sidebar-progress {
+    padding: 12px 20px 16px;
+    border-top: 1px solid var(--border);
+  }
+  .progress-label {
+    font-size: 12px; color: var(--text-dim);
+    margin-bottom: 6px;
+    display: flex; justify-content: space-between;
+  }
+  .progress-track {
+    height: 6px; background: var(--bg); border-radius: 3px; overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%; width: 0%; border-radius: 3px;
+    background: var(--accent);
+    transition: width 0.3s ease;
+  }
+  .progress-fill.indeterminate {
+    width: 100%; opacity: 0.5;
+    background: linear-gradient(90deg, var(--accent) 0%, transparent 50%, var(--accent) 100%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s linear infinite;
+  }
+  @keyframes shimmer { 0%{background-position:200% 0;} 100%{background-position:-200% 0;} }
+
+  /* ---- Main area: scrollable ---- */
+  .main-area {
+    flex: 1;
+    min-width: 0;
+    padding: 24px 32px 60px;
+    max-width: 900px;
+  }
+
+  /* ---- Setup form ---- */
+  #setupView { max-width: 600px; }
+  .setup-section { margin-bottom: 24px; }
+  .setup-section label {
+    display: block;
+    font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 1px;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+  }
+  .option-list { list-style: none; }
+  .option-list li {
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .option-list li:hover { border-color: var(--accent); background: var(--accent-light); }
+  .option-list li.selected { border-color: var(--accent); background: var(--accent-light); }
+  .option-list li .name { font-weight: 500; }
+  .option-list li .desc { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+  .setup-hint {
+    font-size: 12px; color: var(--text-dim); font-style: italic;
+    margin-top: 8px; line-height: 1.4;
+  }
+  .setup-input {
+    width: 100%; margin-top: 6px; padding: 8px 12px;
+    border: 1px solid var(--border); border-radius: 6px;
+    font-family: var(--font-mono); font-size: 12px;
+    background: var(--surface2); color: var(--text);
+  }
+  .setup-input:focus { outline: none; border-color: var(--accent); }
+
+  .btn {
+    display: inline-block; padding: 10px 24px;
+    border: none; border-radius: 8px;
+    cursor: pointer; font-family: var(--font);
+    font-size: 14px; font-weight: 600;
+    transition: all 0.15s;
+  }
+  .btn:hover { opacity: 0.9; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-primary { background: var(--accent); color: white; }
+  .btn-green { background: var(--green); color: white; }
+  .btn-red { background: var(--red); color: white; }
+  .btn-dim { background: var(--surface2); color: var(--text-dim); border: 1px solid var(--border); }
+
+  /* ---- Feed: the main scrollable content ---- */
+  #feed { display: none; }
+  #feed.active { display: block; }
+
+  .feed-entry {
+    margin-bottom: 8px;
+    border-radius: var(--radius);
+    font-size: 13px;
+    font-family: var(--font-mono);
+    word-break: break-word;
+    line-height: 1.5;
+  }
+
+  /* Compact log lines */
+  .feed-log {
+    padding: 6px 12px;
+  }
+  .feed-log .ts { color: var(--text-dim); font-size: 11px; margin-right: 8px; }
+  .feed-log.tool-call { background: var(--accent-light); color: var(--accent); }
+  .feed-log.tool-result { background: var(--green-light); color: #1a7a34; }
+  .feed-log.nemotron-text, .feed-log.claude-text { background: var(--purple-light); color: var(--purple); }
+  .feed-log.error-entry { background: var(--red-light); color: var(--red); font-weight: 600; }
+  .feed-log.info-entry { background: var(--surface2); color: var(--text); }
+  .feed-log.api-call { background: var(--orange-light); color: var(--orange); }
+  .feed-log.api-response { background: var(--orange-light); color: var(--orange); }
+
+  /* Full-width content cards */
+  .feed-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow);
+  }
+  .feed-card h3 {
+    font-family: var(--font);
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    color: var(--text);
+  }
+  .feed-card pre {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.4;
+    white-space: pre-wrap;
+    color: var(--text);
+    background: var(--surface2);
+    padding: 12px;
+    border-radius: 6px;
+    overflow-x: auto;
+  }
+  .feed-card .nemotron-reasoning, .feed-card .claude-reasoning {
+    font-family: var(--font);
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--text);
+    font-style: italic;
+    border-left: 3px solid var(--purple);
+    padding: 8px 16px;
+    background: var(--purple-light);
+    border-radius: 0 6px 6px 0;
+    margin-bottom: 12px;
+  }
+  .feed-card .card-label {
+    font-family: var(--font);
+    font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 1px;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+  }
+
+  /* Checkpoint cards */
+  .feed-card.checkpoint {
+    border-color: var(--yellow);
+    border-width: 2px;
+  }
+  .feed-card.checkpoint h3::before {
+    content: '\u23F8  ';
+    color: var(--yellow);
+  }
+
+  /* Query card */
+  .query-row {
+    display: flex; align-items: center; gap: 8px;
+    margin: 6px 0;
+  }
+  .query-row .qnum {
+    font-size: 12px; color: var(--text-dim); width: 20px; text-align: right; flex-shrink: 0;
+  }
+  .query-row input {
+    flex: 1; padding: 8px 12px;
+    border: 1px solid var(--border); border-radius: 6px;
+    font-family: var(--font-mono); font-size: 13px;
+    background: var(--surface2); color: var(--text);
+  }
+  .query-row input:focus { outline: none; border-color: var(--accent); }
+  .query-row .remove-btn {
+    width: 28px; height: 28px; border: none; border-radius: 6px;
+    background: var(--red-light); color: var(--red); cursor: pointer;
+    font-size: 16px; display: flex; align-items: center; justify-content: center;
+  }
+  .add-query-btn {
+    font-size: 12px; color: var(--accent); background: none; border: none;
+    cursor: pointer; padding: 4px 0; font-family: var(--font); font-weight: 600;
+  }
+  .checkpoint-actions {
+    display: flex; gap: 8px; margin-top: 14px;
+  }
+
+  /* Metrics table in cards */
+  .metrics-table {
+    width: 100%; border-collapse: collapse;
+    font-family: var(--font-mono); font-size: 13px;
+  }
+  .metrics-table th {
+    background: var(--surface2); border: 1px solid var(--border);
+    padding: 6px 10px; text-align: right; font-weight: 700; color: var(--accent);
+  }
+  .metrics-table th:first-child { text-align: left; }
+  .metrics-table td {
+    border: 1px solid var(--border); padding: 6px 10px; text-align: right;
+  }
+  .metrics-table td:first-child { text-align: left; font-weight: 600; }
+
+  /* Paper list */
+  .paper-item {
+    padding: 8px 0; border-bottom: 1px solid var(--border);
+    font-family: var(--font); font-size: 13px; line-height: 1.4;
+  }
+  .paper-item:last-child { border-bottom: none; }
+  .paper-item .p-title { font-weight: 500; }
+  .paper-item .p-meta { color: var(--text-dim); font-size: 12px; margin-top: 2px; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #aaa; }
+
+  /* ---- Progress bar: sticky at bottom of main area ---- */
+  .progress-bar-sticky {
+    position: sticky;
+    bottom: 0;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding: 12px 0 16px;
+    margin: 0 -32px;
+    padding-left: 32px;
+    padding-right: 32px;
+    z-index: 10;
+  }
+
+  /* ---- Sidebar controls ---- */
+  .sidebar-controls {
+    padding: 14px 20px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 8px;
+    margin-top: auto;
+  }
+  .ctrl-btn {
+    flex: 1;
+    padding: 8px 0;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface2);
+    color: var(--text-dim);
+    font-family: var(--font);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+  }
+  .ctrl-btn:hover { background: var(--border); color: var(--text); }
+  .ctrl-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .ctrl-btn:disabled:hover { background: var(--surface2); color: var(--text-dim); }
+  .ctrl-btn.stop { border-color: var(--red); color: var(--red); }
+  .ctrl-btn.stop:hover { background: var(--red-light); }
+  .ctrl-btn.pause { border-color: var(--yellow); color: #996600; }
+  .ctrl-btn.pause:hover { background: var(--yellow-light); }
+  .ctrl-btn.restart { border-color: var(--green); color: var(--green); }
+  .ctrl-btn.restart:hover { background: var(--green-light); }
+
+  @media (max-width: 700px) {
+    .sidebar { width: 220px; }
+    .main-area { padding: 16px; }
+  }
+
+  /* ---- Welcome / wizard / modals ---- */
+  .welcome-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 16px;
+    margin-top: 24px;
+  }
+  .welcome-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    box-shadow: var(--shadow);
+  }
+  .welcome-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  }
+  .welcome-card.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .welcome-card.disabled:hover {
+    border-color: var(--border);
+    transform: none;
+    box-shadow: var(--shadow);
+  }
+  .welcome-card-title {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+  .welcome-card-desc {
+    font-size: 13px;
+    color: var(--text-dim);
+    margin-bottom: 12px;
+  }
+  .welcome-card-meta {
+    font-size: 12px;
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+    border-top: 1px solid var(--border);
+    padding-top: 10px;
+    margin-top: 10px;
+  }
+
+  .wizard-progress {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 24px;
+    font-size: 12px;
+    color: var(--text-dim);
+    flex-wrap: wrap;
+  }
+  .wizard-progress span {
+    padding: 4px 10px;
+    border-radius: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+  }
+  .wizard-progress span.active {
+    background: var(--accent-light);
+    color: var(--accent);
+    border-color: var(--accent);
+    font-weight: 600;
+  }
+  .wizard-progress span.done {
+    color: var(--green);
+    border-color: var(--green);
+  }
+
+  .wizard-nav {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 32px;
+    gap: 12px;
+  }
+  .wizard-nav .btn-secondary {
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .wizard-nav .btn-secondary:hover { background: var(--surface2); }
+
+  .wizard-radio-list label {
+    display: block;
+    padding: 12px 16px;
+    margin-bottom: 8px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: border 0.1s ease;
+  }
+  .wizard-radio-list label:hover { border-color: var(--accent); }
+  .wizard-radio-list label.checked {
+    border-color: var(--accent);
+    background: var(--accent-light);
+  }
+  .wizard-radio-list input[type="radio"] { margin-right: 10px; }
+  .wizard-radio-list .radio-desc {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-left: 24px;
+    margin-top: 2px;
+  }
+
+  .wizard-field { margin-bottom: 16px; }
+  .wizard-field label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  .wizard-field input, .wizard-field select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 14px;
+    font-family: var(--font);
+  }
+  .wizard-field .hint {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-top: 4px;
+  }
+
+  .registry-list {
+    list-style: none;
+    margin: 16px 0;
+    padding: 0;
+  }
+  .registry-list li {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .registry-list .item-title { font-weight: 600; font-size: 14px; }
+  .registry-list .item-meta { font-size: 12px; color: var(--text-dim); margin-top: 2px; font-family: var(--font-mono); }
+  .registry-list button.delete {
+    background: transparent;
+    border: 1px solid var(--red);
+    color: var(--red);
+    padding: 4px 10px;
+    font-size: 12px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .registry-list button.delete:hover { background: var(--red-light); }
+  .registry-empty {
+    color: var(--text-dim);
+    font-size: 13px;
+    text-align: center;
+    padding: 24px;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius);
+  }
+
+  /* Modal */
+  .modal {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+  }
+  .modal[hidden] { display: none !important; }
+  .modal-content {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 24px;
+    max-width: 580px;
+    width: 90%;
+    max-height: 85vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  }
+  .modal-content h2 {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 18px;
+  }
+  .modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+  .modal-actions button {
+    padding: 8px 16px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    border: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .modal-actions button.primary {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+  }
+  .modal-actions button.primary:hover { background: #005bb5; }
+  .modal-actions button:hover { background: var(--surface2); }
+
+  /* Drag-and-drop dropzone */
+  .dropzone {
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 13px;
+    margin-top: 12px;
+    transition: all 0.1s ease;
+  }
+  .dropzone.dragging {
+    border-color: var(--accent);
+    background: var(--accent-light);
+    color: var(--accent);
+  }
+
+  /* File browser */
+  .fb-path {
+    background: var(--surface2);
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    margin-bottom: 12px;
+    border: 1px solid var(--border);
+    word-break: break-all;
+  }
+  .fb-list {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    max-height: 360px;
+    overflow-y: auto;
+  }
+  .fb-entry {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .fb-entry:last-child { border-bottom: 0; }
+  .fb-entry:hover { background: var(--accent-light); }
+  .fb-entry.dir { font-weight: 600; }
+  .fb-entry.dir::before { content: '📁'; }
+  .fb-entry.file::before { content: '📄'; opacity: 0.5; }
+  .fb-entry.parent { color: var(--text-dim); }
+  .fb-entry.parent::before { content: '↰'; }
+
+  /* Path input + browse button row */
+  .path-input-row {
+    display: flex;
+    gap: 8px;
+  }
+  .path-input-row input { flex: 1; }
+  .path-input-row button {
+    padding: 0 14px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+  .path-input-row button:hover { background: var(--surface2); }
+
+  details summary {
+    cursor: pointer;
+    padding: 8px 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-dim);
+  }
+  details[open] summary { color: var(--text); }
+</style>
+</head>
+<body>
+
+<div class="layout">
+
+  <!-- ======== SIDEBAR ======== -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <h1><span>AXIS</span> Agentic</h1>
+      <div class="sidebar-status">
+        <div class="status-dot" id="statusDot"></div>
+        <span id="statusText">Connecting...</span>
+      </div>
+    </div>
+
+    <div class="sidebar-title">Pipeline</div>
+    <div class="steps" id="steps"></div>
+
+    <div class="sidebar-controls">
+      <button class="ctrl-btn stop" id="stopBtn" disabled onclick="stopPipeline()">&#9632; Stop</button>
+      <button class="ctrl-btn pause" id="pauseBtn" disabled onclick="pausePipeline()">&#10074;&#10074; Pause</button>
+      <button class="ctrl-btn restart" id="restartBtn" disabled onclick="restartPipeline()">&#8635; Restart</button>
+    </div>
+  </aside>
+
+  <!-- ======== MAIN ======== -->
+  <main class="main-area">
+
+    <!-- Welcome view (shown initially) -->
+    <div id="welcomeView">
+      <h2 style="font-size:22px; font-weight:700; margin-bottom:8px;">New Evaluation</h2>
+      <p style="color:var(--text-dim); font-size:14px;">Where do you want to start?</p>
+      <div class="welcome-cards">
+        <div class="welcome-card" onclick="startWith('default')">
+          <div class="welcome-card-title">Use defaults</div>
+          <div class="welcome-card-desc">Bundled tiny demo dataset, no model required (synthetic predictions).</div>
+          <div class="welcome-card-meta" id="defaultMeta">…</div>
+        </div>
+        <div class="welcome-card" id="savedCard" onclick="startWith('saved')">
+          <div class="welcome-card-title">Use saved profile</div>
+          <div class="welcome-card-desc">Your profile at <code>~/.config/axis-agentic/profile.yaml</code>.</div>
+          <div class="welcome-card-meta" id="savedMeta">…</div>
+        </div>
+        <div class="welcome-card" onclick="startWith('new')">
+          <div class="welcome-card-title">Configure new</div>
+          <div class="welcome-card-desc">Pick engine + adapter, register your own models and datasets.</div>
+          <div class="welcome-card-meta">4 quick steps</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Wizard (configure-new flow) -->
+    <div id="wizardView" hidden>
+      <div class="wizard-progress" id="wizardProgress">
+        <span data-step="engine" class="active">1. Engine</span>
+        <span data-step="models">2. Models</span>
+        <span data-step="datasets">3. Datasets</span>
+      </div>
+
+      <!-- Step: Engine -->
+      <div id="wizardEngine" class="wizard-step-content">
+        <h2 style="font-size:20px; font-weight:700; margin-bottom:8px;">Engine</h2>
+        <p style="color:var(--text-dim); font-size:13px; margin-bottom:16px;">Which LLM should drive the agents?</p>
+        <div class="wizard-radio-list" id="enginePresets">
+          <label data-preset="anthropic">
+            <input type="radio" name="enginePreset" value="anthropic" checked> Anthropic Claude
+            <div class="radio-desc">Default — best tool-calling fidelity, requires <code>ANTHROPIC_API_KEY</code></div>
+          </label>
+          <label data-preset="openai">
+            <input type="radio" name="enginePreset" value="openai"> OpenAI
+            <div class="radio-desc">GPT-4o or any chat-completions model, requires <code>OPENAI_API_KEY</code></div>
+          </label>
+          <label data-preset="ollama">
+            <input type="radio" name="enginePreset" value="ollama"> Ollama (local)
+            <div class="radio-desc">Qwen / Llama / etc. running on <code>localhost:11434</code> — no key needed</div>
+          </label>
+          <label data-preset="nim">
+            <input type="radio" name="enginePreset" value="nim"> NVIDIA NIM (Nemotron)
+            <div class="radio-desc">Hosted at <code>integrate.api.nvidia.com</code>, requires NVIDIA API key in <code>OPENAI_API_KEY</code></div>
+          </label>
+          <label data-preset="custom">
+            <input type="radio" name="enginePreset" value="custom"> Custom OpenAI-compatible endpoint
+            <div class="radio-desc">Any chat-completions API: Together, Groq, LM Studio, …</div>
+          </label>
+        </div>
+        <div class="wizard-field">
+          <label>Model name</label>
+          <input type="text" id="wizEngineModel" value="claude-sonnet-4-6">
+        </div>
+        <div class="wizard-field" id="wizEngineBaseUrlField" hidden>
+          <label>Base URL</label>
+          <input type="text" id="wizEngineBaseUrl" placeholder="http://localhost:11434/v1">
+        </div>
+        <div class="wizard-nav">
+          <button class="btn-secondary" onclick="cancelWizard()">Cancel</button>
+          <button class="btn btn-primary" onclick="wizardGoto('models')">Next →</button>
+        </div>
+      </div>
+
+      <!-- Step: Adapter -->
+      <div id="wizardAdapter" class="wizard-step-content" hidden>
+        <h2 style="font-size:20px; font-weight:700; margin-bottom:8px;">Default adapter</h2>
+        <p style="color:var(--text-dim); font-size:13px; margin-bottom:16px;">How should the model under test be called? Each model you add can override this.</p>
+        <div class="wizard-radio-list" id="adapterPresets">
+          <label data-preset="http">
+            <input type="radio" name="adapterPreset" value="http" checked> HTTP endpoint
+            <div class="radio-desc">Any inference server you run yourself, OpenAI vision, Replicate, …</div>
+          </label>
+          <label data-preset="mlx">
+            <input type="radio" name="adapterPreset" value="mlx"> MLX (in-process Apple Silicon)
+            <div class="radio-desc">Load a local mlx-vlm model directly — no server</div>
+          </label>
+          <label data-preset="transformers">
+            <input type="radio" name="adapterPreset" value="transformers"> HuggingFace transformers
+            <div class="radio-desc">Load a HF model ID or local checkpoint via PyTorch</div>
+          </label>
+          <label data-preset="anthropic">
+            <input type="radio" name="adapterPreset" value="anthropic"> Anthropic Claude vision
+            <div class="radio-desc">Use Claude as the model under test — for benchmarking against a frontier VLM</div>
+          </label>
+        </div>
+        <div class="wizard-field">
+          <label id="wizAdapterPathLabel">URL</label>
+          <div class="path-input-row">
+            <input type="text" id="wizAdapterPath" value="http://localhost:8321/predict">
+            <button id="wizAdapterBrowseBtn" hidden onclick="openFileBrowser('wizAdapterPath')">Browse…</button>
+          </div>
+          <div class="hint" id="wizAdapterHint">URL of the inference server</div>
+        </div>
+        <div class="wizard-nav">
+          <button class="btn-secondary" onclick="wizardGoto('engine')">← Back</button>
+          <button class="btn btn-primary" onclick="wizardGoto('models')">Next →</button>
+        </div>
+      </div>
+
+      <!-- Step: Models -->
+      <div id="wizardModels" class="wizard-step-content" hidden>
+        <h2 style="font-size:20px; font-weight:700; margin-bottom:8px;">Models</h2>
+        <p style="color:var(--text-dim); font-size:13px; margin-bottom:16px;">Register the models you want to evaluate. Each can use a different adapter.</p>
+        <ul class="registry-list" id="wizModelsList"></ul>
+        <button class="btn-secondary" onclick="openAddModelModal()">+ Add model</button>
+        <div class="wizard-nav">
+          <button class="btn-secondary" onclick="wizardGoto('engine')">← Back</button>
+          <button class="btn btn-primary" onclick="wizardGoto('datasets')">Next →</button>
+        </div>
+      </div>
+
+      <!-- Step: Datasets -->
+      <div id="wizardDatasets" class="wizard-step-content" hidden>
+        <h2 style="font-size:20px; font-weight:700; margin-bottom:8px;">Datasets</h2>
+        <p style="color:var(--text-dim); font-size:13px; margin-bottom:16px;">Register the evaluation datasets. Auto-detect runs if no manifest is found at the path.</p>
+        <ul class="registry-list" id="wizDatasetsList"></ul>
+        <button class="btn-secondary" onclick="openAddDatasetModal()">+ Add dataset</button>
+        <div class="wizard-nav">
+          <button class="btn-secondary" onclick="wizardGoto('models')">← Back</button>
+          <button class="btn btn-primary" onclick="wizardFinish()">Save profile & continue →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Setup view (model/dataset picker) — shown after welcome/wizard -->
+    <div id="setupView" hidden>
+      <h2 style="font-size:22px; font-weight:700; margin-bottom:8px;">Pick model + datasets</h2>
+      <p style="color:var(--text-dim); font-size:13px; margin-bottom:16px;">
+        <span id="setupSourceLabel"></span>
+        <a href="#" onclick="backToWelcome();return false;" style="margin-left:8px;">← change</a>
+      </p>
+
+      <div class="setup-section">
+        <label>Model</label>
+        <ul class="option-list" id="modelList"></ul>
+      </div>
+
+      <div class="setup-section">
+        <label>Datasets (click to toggle)</label>
+        <ul class="option-list" id="datasetList"></ul>
+      </div>
+
+      <button class="btn btn-primary" id="startBtn" disabled style="width:100%; margin-top:8px;">Start Evaluation</button>
+    </div>
+
+    <!-- Feed (shown during/after pipeline) -->
+    <div id="feed"></div>
+
+    <!-- Progress bar: sticky at bottom of main area -->
+    <div class="progress-bar-sticky" id="progressBar" style="display:none;">
+      <div class="progress-label">
+        <span id="progressLabel">Idle</span>
+        <span id="progressPct"></span>
+      </div>
+      <div class="progress-track">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ============================================================
+     Modals — overlay any view
+     ============================================================ -->
+
+<!-- Add Model -->
+<div id="addModelModal" class="modal" hidden>
+  <div class="modal-content">
+    <h2>Add model</h2>
+    <div class="wizard-field">
+      <label>Display name</label>
+      <input type="text" id="newModelName" placeholder="e.g. my-finetune-v1">
+    </div>
+    <div class="wizard-field">
+      <label>Adapter</label>
+      <select id="newModelAdapterKind">
+        <option value="http">HTTP endpoint</option>
+        <option value="mlx">MLX (Apple Silicon, local)</option>
+        <option value="transformers">HuggingFace transformers</option>
+        <option value="anthropic">Anthropic Claude vision</option>
+      </select>
+    </div>
+    <div class="wizard-field">
+      <label id="newModelPathLabel">URL</label>
+      <div class="path-input-row">
+        <input type="text" id="newModelPath" placeholder="http://localhost:8321/predict">
+        <button id="newModelBrowseBtn" hidden onclick="openFileBrowser('newModelPath')">Browse…</button>
+      </div>
+      <div class="hint" id="newModelPathHint">URL of the inference server</div>
+      <div class="dropzone" id="newModelDropzone" hidden>
+        Drop a folder here, or paste its absolute path above
+      </div>
+    </div>
+    <details>
+      <summary>Optional: baseline metrics for comparison</summary>
+      <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; margin-top:8px;">
+        <div class="wizard-field"><label>MCC</label><input type="number" id="newModelMcc" step="0.001" placeholder="e.g. 0.5"></div>
+        <div class="wizard-field"><label>Sensitivity</label><input type="number" id="newModelSens" step="0.001" placeholder="e.g. 0.8"></div>
+        <div class="wizard-field"><label>Specificity</label><input type="number" id="newModelSpec" step="0.001" placeholder="e.g. 0.8"></div>
+      </div>
+      <div class="wizard-field">
+        <label>Source</label>
+        <input type="text" id="newModelBaselineSrc" placeholder="e.g. paper citation or 'internal benchmark, n=...'">
+      </div>
+    </details>
+    <div class="modal-actions">
+      <button onclick="closeAddModelModal()">Cancel</button>
+      <button class="primary" onclick="saveAddModelModal()">Add model</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Dataset -->
+<div id="addDatasetModal" class="modal" hidden>
+  <div class="modal-content">
+    <h2>Add dataset</h2>
+    <div class="wizard-field">
+      <label>Display name</label>
+      <input type="text" id="newDatasetName" placeholder="e.g. my-test-set">
+    </div>
+    <div class="wizard-field">
+      <label>Description (optional)</label>
+      <input type="text" id="newDatasetDescription" placeholder="optional one-liner">
+    </div>
+    <div class="wizard-field">
+      <label>Dataset folder</label>
+      <div class="path-input-row">
+        <input type="text" id="newDatasetPath" placeholder="/path/to/dataset">
+        <button onclick="openFileBrowser('newDatasetPath')">Browse…</button>
+      </div>
+      <div class="dropzone" id="newDatasetDropzone">
+        Drop a folder here, or paste its absolute path above
+      </div>
+    </div>
+    <div class="wizard-field">
+      <label>Manifest CSV (optional — auto-detect runs if missing)</label>
+      <div class="path-input-row">
+        <input type="text" id="newDatasetManifest" placeholder="manifest.csv">
+        <button onclick="openFileBrowser('newDatasetManifest')">Browse…</button>
+      </div>
+      <div class="hint">If left blank, defaults to <code>&lt;folder&gt;/manifest.csv</code>. If that doesn't exist, the agent will run dataset auto-detect when you start the run.</div>
+    </div>
+    <div class="modal-actions">
+      <button onclick="closeAddDatasetModal()">Cancel</button>
+      <button class="primary" onclick="saveAddDatasetModal()">Add dataset</button>
+    </div>
+  </div>
+</div>
+
+<!-- File browser -->
+<div id="fileBrowserModal" class="modal" hidden>
+  <div class="modal-content">
+    <h2>Browse</h2>
+    <div class="fb-path" id="fbPath"></div>
+    <div class="fb-list" id="fbList"></div>
+    <div class="modal-actions">
+      <button onclick="closeFileBrowser()">Cancel</button>
+      <button class="primary" onclick="selectCurrentFolder()">Select this folder</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+
+let selectedModel = 0;
+let selectedDatasets = new Set([0]);
+let pipelineRunning = false;
+let configData = null;
+let startTime = null;
+let _queryCount = 0;
+let currentProvider = null;
+let currentAdapter = null;
+
+// Map step id -> milestone container element
+let stepMilestones = {};
+// Track current evaluator index for milestones
+let currentEvalIndex = 0;
+
+// ------------------------------------------------------------------
+// Setup
+// ------------------------------------------------------------------
+
+async function loadConfig() {
+  configData = await (await fetch('/config')).json();
+  renderSetup();
+}
+
+function renderSetup() {
+  const ml = $('#modelList');
+  ml.innerHTML = '';
+  configData.models.forEach((m, i) => {
+    const li = document.createElement('li');
+    li.innerHTML = `<div class="name">${m.name}</div><div class="desc">${m.description}</div>`;
+    if (i === selectedModel) li.classList.add('selected');
+    li.onclick = () => {
+      // Click selected model again to deselect
+      selectedModel = (selectedModel === i) ? null : i;
+      renderSetup();
+    };
+    ml.appendChild(li);
+  });
+  const dl = $('#datasetList');
+  dl.innerHTML = '';
+  configData.datasets.forEach((d, i) => {
+    const li = document.createElement('li');
+    li.innerHTML = `<div class="name">${d.name}</div><div class="desc">${d.description}</div>`;
+    if (selectedDatasets.has(i)) li.classList.add('selected');
+    li.onclick = () => {
+      if (selectedDatasets.has(i)) selectedDatasets.delete(i);
+      else selectedDatasets.add(i);
+      renderSetup();
+    };
+    dl.appendChild(li);
+  });
+  // Run requires at least one model AND one dataset selected
+  $('#startBtn').disabled = (selectedModel === null) || (selectedDatasets.size === 0);
+}
+
+$('#startBtn').addEventListener('click', async () => {
+  if (pipelineRunning) return;
+  pipelineRunning = true;
+  startTime = Date.now();
+  $('#startBtn').disabled = true;
+  $('#startBtn').textContent = 'Running...';
+  const resp = await fetch('/start', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ model: selectedModel, datasets: [...selectedDatasets].sort() }),
+  });
+  const data = await resp.json();
+  if (data.error) {
+    addLog('error-entry', data.error);
+    pipelineRunning = false;
+    $('#startBtn').disabled = false;
+    $('#startBtn').textContent = 'Start Evaluation';
+  }
+});
+
+// ------------------------------------------------------------------
+// SSE
+// ------------------------------------------------------------------
+
+function connectSSE() {
+  const es = new EventSource('/events');
+  es.onopen = () => setStatus('Ready', 'connected');
+  es.onmessage = e => handleEvent(JSON.parse(e.data));
+  es.onerror = () => setStatus('Disconnected', 'error');
+}
+
+function setStatus(text, cls) {
+  $('#statusText').textContent = text;
+  $('#statusDot').className = 'status-dot ' + (cls || '');
+}
+
+// ------------------------------------------------------------------
+// Events
+// ------------------------------------------------------------------
+
+let dynamicSteps = [];
+
+function handleEvent(evt) {
+  switch (evt.type) {
+    case 'pipeline_start':
+      setStatus('Running', 'running');
+      $('#setupView').style.display = 'none';
+      $('#feed').className = 'active';
+      $('#feed').style.display = 'block';
+      $('#progressBar').style.display = 'block';
+      enableControls();
+      setProgress(0, 'Initializing...');
+      currentProvider = null;
+      currentAdapter = null;
+      dynamicSteps = [{ id: 'setup', label: 'Setup', status: 'done', milestones: [] }];
+      (evt.datasets || []).forEach((ds, i) => {
+        dynamicSteps.push({ id: `eval_${i}`, label: `Evaluator: ${ds}`, status: 'pending', milestones: [] });
+      });
+      dynamicSteps.push({ id: 'checkpoint', label: 'Metrics Checkpoint', status: 'pending', milestones: [] });
+      dynamicSteps.push({ id: 'analyst', label: 'Analyst', status: 'pending', milestones: [] });
+      dynamicSteps.push({ id: 'queries', label: 'PubMed Search', status: 'pending', milestones: [] });
+      dynamicSteps.push({ id: 'results', label: 'Results', status: 'pending', milestones: [] });
+      renderSteps();
+      addLog('info-entry', `Pipeline started \u2014 ${evt.model} on ${(evt.datasets||[]).join(', ')}`);
+      break;
+
+    case 'service_check':
+      addLog('info-entry', `\u25cb Checking ${evt.service}\u2026`);
+      setProgress(-1, `Checking ${evt.service}\u2026`);
+      break;
+
+    case 'service_starting':
+      addLog('info-entry', `\u25b6 Starting ${evt.service}${evt.action ? ' \u2014 ' + evt.action : ''}\u2026`);
+      setProgress(-1, `Starting ${evt.service}\u2026`);
+      break;
+
+    case 'service_progress':
+      addLog('info-entry', `  \u2026 ${evt.service}: ${evt.text}`);
+      break;
+
+    case 'service_ready':
+      addLog('info-entry', `\u2713 ${evt.service} ready${evt.detail ? ' (' + evt.detail + ')' : ''}`);
+      break;
+
+    case 'service_failed':
+      addLog('error-entry', `\u2717 ${evt.service}: ${evt.error}`);
+      setStatus('Error', 'error');
+      break;
+
+    case 'evaluator_start':
+      currentEvalIndex = evt.eval_index || 0;
+      setStepStatus(`eval_${currentEvalIndex}`, 'running', evt.dataset);
+      setProgress(0, `Evaluator: ${evt.dataset}`);
+      addLog('info-entry', `Evaluator started for ${evt.dataset}`);
+      break;
+
+    case 'evaluator_done':
+      setStepStatus(`eval_${evt.eval_index||0}`, 'done');
+      setProgress(100, `${evt.dataset}: Complete`);
+      break;
+
+    case 'evaluator_error':
+      setStepStatus(`eval_${evt.eval_index||0}`, 'error');
+      setProgress(0, `Error: ${evt.dataset}`);
+      addLog('error-entry', `Evaluator failed on ${evt.dataset}: ${evt.error}`);
+      break;
+
+    case 'milestone':
+      addMilestone(evt.agent === 'evaluator' ? `eval_${currentEvalIndex}` : 'analyst', evt.text);
+      break;
+
+    case 'api_call':
+      if (evt.provider) currentProvider = evt.provider;
+      addLog('api-call', `${evt.provider} \u2192 ${shortModel(evt.model)} (turn ${evt.turn})`);
+      break;
+
+    case 'api_response':
+      { const tk = evt.prompt_tokens && evt.completion_tokens ? ` [${evt.prompt_tokens}+${evt.completion_tokens} tok]` : '';
+        const tc = evt.tool_calls > 0 ? `, ${evt.tool_calls} tool call${evt.tool_calls>1?'s':''}` : '';
+        addLog('api-response', `${evt.provider} \u2190 ${evt.elapsed_ms}ms, ${evt.finish_reason}${tc}${tk}`);
+      }
+      break;
+
+    case 'tool_call':
+      { const who = currentProvider || 'Engine';
+        addLog('tool-call', `${who} calls ${evt.fn_name}.py (${evt.summary || ''})`);
+        if (evt.fn_name === 'run_inference') setProgress(0, 'Running inference...');
+        else if (evt.fn_name === 'search_literature') setProgress(-1, 'Searching PubMed...');
+        else setProgress(-1, evt.fn_name.replace(/_/g, ' ') + '...');
+      }
+      break;
+
+    case 'tool_result':
+      addLog('tool-result', `${evt.fn_name}.py: ${evt.summary || 'OK'}`);
+      break;
+
+    case 'inference_progress':
+      { const pct = Math.round((evt.current / evt.total) * 100);
+        const adapter = currentAdapter || 'Inference adapter';
+        setProgress(pct, `${adapter}: ${evt.current}/${evt.total}`);
+        if (evt.current === 1 || evt.current === evt.total || evt.current % 10 === 0)
+          addLog('info-entry', `${adapter}: ${evt.current}/${evt.total} studies`);
+      }
+      break;
+
+    case 'inference_call':
+      // Track adapter label for the progress bar; no log line per image
+      if (evt.server) currentAdapter = evt.server;
+      break;
+
+    case 'web_search':
+      addLog('api-call', `Web Search \u2192 PubMed "${evt.query}" (${evt.query_index}/${evt.total_queries})`);
+      break;
+
+    case 'web_search_result':
+      if (evt.error) addLog('error-entry', `Web Search: ${evt.error}`);
+      else addLog('api-response', `Web Search \u2190 ${evt.hits} papers (${evt.elapsed_ms}ms)`);
+      break;
+
+    case 'nemotron_text':
+    case 'claude_text':
+      // Full text as a card, not truncated
+      addCard(card => {
+        const div = document.createElement('div');
+        div.className = 'claude-reasoning';
+        div.textContent = evt.text;
+        card.appendChild(div);
+      });
+      break;
+
+    case 'agent_complete':
+      { let m = evt.metrics, detail = '';
+        if (m) {
+          const parts = ['mcc','sensitivity','specificity','f1'].filter(k=>m[k]!=null).map(k=>`${k.toUpperCase()}=${m[k].toFixed(3)}`);
+          detail = ` \u2014 n=${m.total_evaluated||'?'}, ${parts.join(', ')}`;
+        }
+        addLog('info-entry', `${evt.agent} agent finished${detail}`);
+      }
+      break;
+
+    case 'ascii_results':
+      addCard(card => {
+        const h = document.createElement('h3');
+        h.textContent = 'Results Summary';
+        card.appendChild(h);
+        if (evt.table) { const pre = document.createElement('pre'); pre.textContent = evt.table; card.appendChild(pre); }
+        if (evt.confusion_matrices) { const pre = document.createElement('pre'); pre.textContent = evt.confusion_matrices; card.appendChild(pre); }
+        if (evt.bar_chart) { const pre = document.createElement('pre'); pre.textContent = evt.bar_chart; card.appendChild(pre); }
+      });
+      break;
+
+    case 'checkpoint_matrix':
+      setStepStatus('checkpoint', 'running');
+      setProgress(-1, 'Awaiting approval...');
+      renderMatrixCheckpointInline(evt.matrix);
+      break;
+
+    case 'checkpoint_queries':
+      setStepStatus('queries', 'running');
+      setProgress(-1, 'Awaiting approval...');
+      renderQueryCheckpointInline(evt.queries, evt.reasoning);
+      break;
+
+    case 'analyst_start':
+      setStepStatus('analyst', 'running');
+      setProgress(0, 'Analyst running...');
+      addLog('info-entry', 'Analyst agent started');
+      break;
+
+    case 'analyst_done':
+      setStepStatus('analyst', 'done');
+      setStepStatus('results', 'running');
+      setProgress(100, 'Analysis complete');
+      addLog('info-entry', 'Analyst agent finished');
+      if (evt.report_content) {
+        addCard(card => {
+          const h = document.createElement('h3');
+          h.textContent = 'Evaluation Report';
+          card.appendChild(h);
+          const pre = document.createElement('pre');
+          pre.textContent = evt.report_content;
+          card.appendChild(pre);
+        });
+      }
+      break;
+
+    case 'literature_results':
+      if ((evt.papers||[]).length) {
+        addCard(card => {
+          const h = document.createElement('h3');
+          h.textContent = 'Literature';
+          card.appendChild(h);
+          (evt.papers||[]).forEach(p => {
+            const item = document.createElement('div');
+            item.className = 'paper-item';
+            item.innerHTML = `<div class="p-title">${p.title||''}</div><div class="p-meta">${p.meta||''}</div>`;
+            card.appendChild(item);
+          });
+        });
+      }
+      break;
+
+    case 'figures_generated':
+      if ((evt.figures||[]).length) {
+        addCard(card => {
+          const h = document.createElement('h3');
+          h.textContent = 'Figures';
+          card.appendChild(h);
+          (evt.figures||[]).forEach(f => {
+            const d = document.createElement('div');
+            d.style.cssText = 'font-size:13px; padding:4px 0; color:var(--text-dim);';
+            d.textContent = f;
+            card.appendChild(d);
+          });
+        });
+      }
+      break;
+
+    case 'pipeline_complete':
+      setStatus('Complete', 'connected');
+      setStepStatus('results', 'done');
+      addMilestone('results', `${evt.total_files||'?'} output files`);
+      const elapsed = startTime ? Math.round((Date.now()-startTime)/1000) : '?';
+      addMilestone('results', `${elapsed}s total`);
+      setProgress(100, `Complete \u2014 ${evt.total_files||'?'} files, ${elapsed}s`);
+      addCard(card => {
+        card.style.borderColor = 'var(--green)';
+        const h = document.createElement('h3');
+        h.textContent = 'Pipeline Complete';
+        h.style.color = 'var(--green)';
+        card.appendChild(h);
+        const p = document.createElement('div');
+        p.style.cssText = 'font-size:14px; font-family:var(--font);';
+        p.textContent = `${evt.total_files||'?'} output files in ${evt.output_dir||'results/'}. Total time: ${elapsed}s.`;
+        card.appendChild(p);
+      });
+      disableControls();
+      pipelineRunning = false;
+      break;
+
+    case 'pipeline_error':
+      setStatus('Error', 'error');
+      setProgress(0, 'Error');
+      // Make sure the feed is visible so the user can see the error
+      $('#feed').className = 'active';
+      $('#feed').style.display = 'block';
+      addLog('error-entry', `Pipeline error: ${evt.error || 'Unknown'}`);
+      disableControls();
+      pipelineRunning = false;
+      break;
+
+    default:
+      // Render any event type the cockpit doesn't have a dedicated case
+      // for — useful diagnostic if a stale browser cache misses new
+      // event handlers, and a safety net for events added server-side
+      // before the JS catches up.
+      $('#feed').className = 'active';
+      $('#feed').style.display = 'block';
+      addLog('info-entry', `[${evt.type}] ${JSON.stringify(evt).slice(0, 200)}`);
+      break;
+  }
+}
+
+function shortModel(m) {
+  if (!m) return '?';
+  if (m.includes('nemotron')) return 'Nemotron 120B';
+  if (m.includes('claude')) return m.replace('claude-', 'Claude ').replace('-', ' ');
+  return m.split('/').pop();
+}
+
+// ------------------------------------------------------------------
+// Rendering
+// ------------------------------------------------------------------
+
+function renderSteps() {
+  const el = $('#steps');
+  el.innerHTML = '';
+  stepMilestones = {};
+  dynamicSteps.forEach(s => {
+    const st = s.status || 'pending';
+    const icon = st==='done' ? '\u2713' : st==='error' ? '!' : st==='running' ? '\u25B6' : '';
+    const div = document.createElement('div');
+    div.className = `step step-${st}`;
+    div.id = `step-${s.id}`;
+
+    const msHtml = (s.milestones||[]).map(m => `<div class="milestone">${m}</div>`).join('');
+
+    div.innerHTML = `
+      <div class="step-dot ${st}">${icon}</div>
+      <div class="step-content">
+        <div class="step-label">${s.label}</div>
+        <div class="step-detail" id="step-detail-${s.id}"></div>
+        <div class="step-milestones" id="step-ms-${s.id}">${msHtml}</div>
+      </div>`;
+    el.appendChild(div);
+  });
+}
+
+function setStepStatus(id, status, detail) {
+  const s = dynamicSteps.find(s => s.id === id);
+  if (s) s.status = status;
+  renderSteps();
+  if (detail) {
+    const d = document.getElementById(`step-detail-${id}`);
+    if (d) d.textContent = detail;
+  }
+}
+
+function addMilestone(stepId, text) {
+  const s = dynamicSteps.find(s => s.id === stepId);
+  if (s) {
+    if (!s.milestones) s.milestones = [];
+    s.milestones.push(text);
+  }
+  // Append without full re-render
+  const container = document.getElementById(`step-ms-${stepId}`);
+  if (container) {
+    const div = document.createElement('div');
+    div.className = 'milestone';
+    div.textContent = text;
+    container.appendChild(div);
+  }
+}
+
+function addLog(cls, text) {
+  const feed = $('#feed');
+  const div = document.createElement('div');
+  div.className = `feed-entry feed-log ${cls}`;
+  const ts = new Date().toLocaleTimeString('en-US',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  div.innerHTML = `<span class="ts">${ts}</span>${text}`;
+  feed.appendChild(div);
+  window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+}
+
+function addCard(buildFn) {
+  const card = document.createElement('div');
+  card.className = 'feed-entry feed-card';
+  buildFn(card);
+  $('#feed').appendChild(card);
+  window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+}
+
+function setProgress(pct, label) {
+  const fill = $('#progressFill');
+  $('#progressLabel').textContent = label || '';
+  if (pct < 0) {
+    fill.style.width = '100%';
+    fill.className = 'progress-fill indeterminate';
+    $('#progressPct').textContent = '';
+  } else {
+    fill.style.width = pct + '%';
+    fill.className = 'progress-fill';
+    $('#progressPct').textContent = pct > 0 ? pct + '%' : '';
+  }
+}
+
+// ---- Matrix checkpoint inline ----
+function renderMatrixCheckpointInline(matrix) {
+  addCard(card => {
+    card.classList.add('checkpoint');
+    card.id = 'matrixCheckpoint';
+    const h = document.createElement('h3');
+    h.textContent = 'Checkpoint: Review Comparison Matrix';
+    card.appendChild(h);
+
+    const evals = matrix.evaluations || [];
+    const datasets = evals.map(e => e.dataset_name);
+
+    const table = document.createElement('table');
+    table.className = 'metrics-table';
+    let headerHtml = '<tr><th>Metric</th>';
+    datasets.forEach(d => { headerHtml += `<th>${d}</th>`; });
+    headerHtml += '</tr>';
+
+    let bodyHtml = '';
+    ['mcc','sensitivity','specificity','precision','f1'].forEach(m => {
+      bodyHtml += `<tr><td>${m.toUpperCase()}</td>`;
+      evals.forEach(ev => {
+        const v = ev.metrics?.[m];
+        bodyHtml += `<td>${v != null ? v.toFixed(4) : '\u2014'}</td>`;
+      });
+      bodyHtml += '</tr>';
+    });
+    table.innerHTML = headerHtml + bodyHtml;
+    card.appendChild(table);
+
+    const btns = document.createElement('div');
+    btns.className = 'checkpoint-actions';
+    const approveBtn = document.createElement('button');
+    approveBtn.className = 'btn btn-green';
+    approveBtn.textContent = 'Approve';
+    approveBtn.onclick = async () => {
+      await fetch('/approve/matrix',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'approve'})});
+      setStepStatus('checkpoint','done');
+      setProgress(100,'Matrix approved');
+      card.classList.remove('checkpoint');
+      btns.innerHTML = '<div style="color:var(--green);font-weight:600;">Approved</div>';
+    };
+    const abortBtn = document.createElement('button');
+    abortBtn.className = 'btn btn-red';
+    abortBtn.textContent = 'Abort';
+    abortBtn.onclick = async () => {
+      await fetch('/approve/matrix',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'abort'})});
+      setStepStatus('checkpoint','error');
+      card.classList.remove('checkpoint');
+      btns.innerHTML = '<div style="color:var(--red);font-weight:600;">Aborted</div>';
+    };
+    btns.appendChild(approveBtn);
+    btns.appendChild(abortBtn);
+    card.appendChild(btns);
+  });
+}
+
+// ---- Query checkpoint inline with edit/add/remove ----
+function renderQueryCheckpointInline(queries, reasoning) {
+  addCard(card => {
+    card.classList.add('checkpoint');
+    card.id = 'queryCheckpoint';
+
+    const h = document.createElement('h3');
+    h.textContent = 'Checkpoint: Literature Search';
+    card.appendChild(h);
+
+    // Show Claude reasoning
+    if (reasoning) {
+      const r = document.createElement('div');
+      r.className = 'claude-reasoning';
+      r.textContent = reasoning;
+      card.appendChild(r);
+    }
+
+    const label = document.createElement('div');
+    label.className = 'card-label';
+    label.textContent = 'Proposed PubMed queries';
+    card.appendChild(label);
+
+    const desc = document.createElement('div');
+    desc.style.cssText = 'font-family:var(--font); font-size:13px; color:var(--text-dim); margin-bottom:10px;';
+    desc.textContent = 'Edit, add, or remove queries before searching. Queries are scoped to pubmed.ncbi.nlm.nih.gov.';
+    card.appendChild(desc);
+
+    const queryContainer = document.createElement('div');
+    queryContainer.id = 'queryContainer';
+
+    (queries || []).forEach((q, i) => {
+      queryContainer.appendChild(makeQueryRow(i, q));
+    });
+    _queryCount = (queries || []).length;
+    card.appendChild(queryContainer);
+
+    // Add query button
+    const addBtn = document.createElement('button');
+    addBtn.className = 'add-query-btn';
+    addBtn.textContent = '+ Add query';
+    addBtn.onclick = () => {
+      queryContainer.appendChild(makeQueryRow(_queryCount, ''));
+      _queryCount++;
+    };
+    card.appendChild(addBtn);
+
+    // Action buttons
+    const btns = document.createElement('div');
+    btns.className = 'checkpoint-actions';
+
+    const approveBtn = document.createElement('button');
+    approveBtn.className = 'btn btn-green';
+    approveBtn.textContent = 'Search PubMed';
+    approveBtn.onclick = async () => {
+      const qs = collectQueries();
+      card.classList.remove('checkpoint');
+      btns.innerHTML = `<div style="color:var(--green);font-weight:600;">Searching ${qs.length} queries...</div>`;
+      setStepStatus('queries', 'done');
+      addMilestone('queries', `${qs.length} queries approved`);
+      setProgress(-1, 'Searching PubMed...');
+      await fetch('/approve/queries',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'approve',queries:qs})});
+    };
+
+    const skipBtn = document.createElement('button');
+    skipBtn.className = 'btn btn-dim';
+    skipBtn.textContent = 'Skip';
+    skipBtn.onclick = async () => {
+      card.classList.remove('checkpoint');
+      btns.innerHTML = '<div style="color:var(--text-dim);font-weight:600;">Skipped</div>';
+      setStepStatus('queries', 'done');
+      addMilestone('queries', 'Skipped');
+      setProgress(-1, 'Skipped literature search');
+      await fetch('/approve/queries',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'skip',queries:[]})});
+    };
+
+    btns.appendChild(approveBtn);
+    btns.appendChild(skipBtn);
+    card.appendChild(btns);
+  });
+}
+
+function makeQueryRow(index, value) {
+  const row = document.createElement('div');
+  row.className = 'query-row';
+  const num = document.createElement('span');
+  num.className = 'qnum';
+  num.textContent = `${index + 1}.`;
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'query-input';
+  input.value = value;
+  input.placeholder = 'e.g. medical imaging AI sensitivity';
+  const removeBtn = document.createElement('button');
+  removeBtn.className = 'remove-btn';
+  removeBtn.innerHTML = '&times;';
+  removeBtn.onclick = () => row.remove();
+  row.appendChild(num);
+  row.appendChild(input);
+  row.appendChild(removeBtn);
+  return row;
+}
+
+function collectQueries() {
+  const inputs = document.querySelectorAll('#queryContainer .query-input');
+  const qs = [];
+  inputs.forEach(inp => { if (inp.value.trim()) qs.push(inp.value.trim()); });
+  return qs;
+}
+
+// ------------------------------------------------------------------
+// Pipeline controls
+// ------------------------------------------------------------------
+
+let isPaused = false;
+
+function enableControls() {
+  $('#stopBtn').disabled = false;
+  $('#pauseBtn').disabled = false;
+  $('#restartBtn').disabled = false;
+}
+
+function disableControls() {
+  $('#stopBtn').disabled = true;
+  $('#pauseBtn').disabled = true;
+  $('#restartBtn').disabled = true;
+}
+
+async function stopPipeline() {
+  await fetch('/control/stop', { method: 'POST' });
+  addLog('error-entry', 'Stop requested');
+  disableControls();
+}
+
+async function pausePipeline() {
+  if (!isPaused) {
+    await fetch('/control/pause', { method: 'POST' });
+    isPaused = true;
+    $('#pauseBtn').innerHTML = '&#9654; Resume';
+    addLog('info-entry', 'Pipeline paused');
+    setStatus('Paused', 'error');
+  } else {
+    await fetch('/control/resume', { method: 'POST' });
+    isPaused = false;
+    $('#pauseBtn').innerHTML = '&#10074;&#10074; Pause';
+    addLog('info-entry', 'Pipeline resumed');
+    setStatus('Running', 'running');
+  }
+}
+
+async function restartPipeline() {
+  await fetch('/control/restart', { method: 'POST' });
+  addLog('info-entry', 'Restarting pipeline...');
+  isPaused = false;
+  $('#pauseBtn').innerHTML = '&#10074;&#10074; Pause';
+
+  // Clear feed and reset steps
+  $('#feed').innerHTML = '';
+  dynamicSteps.forEach(s => { s.status = 'pending'; s.milestones = []; });
+  renderSteps();
+  setProgress(0, 'Restarting...');
+
+  // Re-trigger start with same config
+  const resp = await fetch('/start', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ model: selectedModel, datasets: [...selectedDatasets].sort() }),
+  });
+  startTime = Date.now();
+}
+
+// ------------------------------------------------------------------
+// Init
+// ------------------------------------------------------------------
+
+// Show default pipeline steps immediately
+dynamicSteps = [
+  { id: 'setup', label: 'Setup', status: 'pending', milestones: [] },
+  { id: 'eval_0', label: 'Evaluator', status: 'pending', milestones: [] },
+  { id: 'checkpoint', label: 'Metrics Checkpoint', status: 'pending', milestones: [] },
+  { id: 'analyst', label: 'Analyst', status: 'pending', milestones: [] },
+  { id: 'queries', label: 'PubMed Search', status: 'pending', milestones: [] },
+  { id: 'results', label: 'Results', status: 'pending', milestones: [] },
+];
+renderSteps();
+
+// ======================================================================
+// Setup wizard — welcome screen, configure-new flow, modals, file browser
+// ======================================================================
+
+// In-memory profile being edited in the wizard. Started from default,
+// reset when the wizard re-opens.
+let wizardProfile = null;
+let _fbCurrentPath = '';
+let _fbTargetField = null;
+
+// Welcome metadata
+async function loadWelcomeMeta() {
+  try {
+    const def = await (await fetch('/profile/default')).json();
+    $('#defaultMeta').textContent =
+      `${def.profile.models.length} models · ${def.profile.datasets.length} datasets · engine: ${def.profile.engine.kind}`;
+  } catch (e) { $('#defaultMeta').textContent = '(unavailable)'; }
+  try {
+    const sav = await (await fetch('/profile')).json();
+    if (sav.exists) {
+      $('#savedMeta').textContent =
+        `${sav.profile.models.length} models · ${sav.profile.datasets.length} datasets · engine: ${sav.profile.engine.kind}`;
+    } else {
+      $('#savedMeta').textContent = '(no profile saved yet)';
+      $('#savedCard').classList.add('disabled');
+      $('#savedCard').onclick = null;
+    }
+  } catch (e) { $('#savedMeta').textContent = '(error)'; }
+}
+
+// Top-level state transitions — welcome / wizard / setup picker.
+// Feed visibility is managed by pipeline_start / pipeline_complete handlers.
+function showOnly(viewId) {
+  ['welcomeView', 'wizardView', 'setupView'].forEach(id => {
+    const el = $('#' + id);
+    if (!el) return;
+    if (id === viewId) el.removeAttribute('hidden');
+    else el.setAttribute('hidden', '');
+  });
+}
+
+function backToWelcome() {
+  showOnly('welcomeView');
+  loadWelcomeMeta();
+}
+
+async function startWith(action) {
+  if (action === 'default') {
+    const r = await (await fetch('/profile/default')).json();
+    await applyProfile(r.profile, { skipSave: true, label: 'Built-in defaults' });
+  } else if (action === 'saved') {
+    const r = await (await fetch('/profile')).json();
+    if (!r.exists) { alert('No saved profile yet.'); return; }
+    await applyProfile(r.profile, { skipSave: true, label: 'Saved profile' });
+  } else if (action === 'new') {
+    const def = (await (await fetch('/profile/default')).json()).profile;
+    // Start the wizard from defaults so the user has something sensible to edit.
+    wizardProfile = JSON.parse(JSON.stringify(def));
+    wizardGoto('engine');
+    showOnly('wizardView');
+  }
+}
+
+async function applyProfile(profile, { skipSave = false, label = '' }) {
+  // Push the profile to the server (which also reloads coordinator).
+  try {
+    await fetch('/profile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ profile, skip_save: skipSave }),
+    });
+  } catch (e) {
+    addLog && addLog('error-entry', 'Failed to apply profile: ' + e.message);
+    return;
+  }
+  // Re-pull /config so the picker shows the updated registry
+  await loadConfig();
+  // Reset selections
+  selectedModel = profile.models.length > 0 ? 0 : null;
+  selectedDatasets = new Set(profile.datasets.length > 0 ? [0] : []);
+  $('#setupSourceLabel').textContent = label;
+  showOnly('setupView');
+  renderSetup();
+}
+
+// ----- Wizard step navigation -----
+
+const WIZARD_STEPS = ['engine', 'models', 'datasets'];
+
+function wizardGoto(step) {
+  WIZARD_STEPS.forEach(s => {
+    const view = $('#wizard' + s.charAt(0).toUpperCase() + s.slice(1));
+    if (view) view.hidden = (s !== step);
+  });
+  // Progress chips
+  document.querySelectorAll('#wizardProgress span').forEach(el => {
+    const s = el.dataset.step;
+    el.classList.remove('active', 'done');
+    const idx = WIZARD_STEPS.indexOf(s);
+    const cur = WIZARD_STEPS.indexOf(step);
+    if (s === step) el.classList.add('active');
+    else if (idx < cur) el.classList.add('done');
+  });
+
+  // Sync visible form to current state of wizardProfile
+  if (step === 'engine') renderWizardEngine();
+  if (step === 'adapter') renderWizardAdapter();
+  if (step === 'models') renderWizardModels();
+  if (step === 'datasets') renderWizardDatasets();
+}
+
+function cancelWizard() { backToWelcome(); }
+
+async function wizardFinish() {
+  // Capture engine selection from form fields (in case user didn't navigate)
+  if (!_engineCaptured) captureWizardEngine();
+  // Save profile to disk and apply (this also reloads the coordinator
+  // so AVAILABLE_MODELS / AVAILABLE_DATASETS pick up the new registry)
+  await applyProfile(wizardProfile, { skipSave: false, label: 'Configured (saved to profile)' });
+}
+
+// ----- Wizard step: engine -----
+let _engineCaptured = false;
+const ENGINE_PRESETS = {
+  anthropic: { kind: 'anthropic', model: 'claude-sonnet-4-6', base_url: null },
+  openai:    { kind: 'openai-compat', model: 'gpt-4o', base_url: null },
+  ollama:    { kind: 'openai-compat', model: 'qwen2.5', base_url: 'http://localhost:11434/v1' },
+  nim:       { kind: 'openai-compat', model: 'nvidia/llama-3.3-nemotron-super-49b-v1', base_url: 'https://integrate.api.nvidia.com/v1' },
+  custom:    { kind: 'openai-compat', model: '', base_url: '' },
+};
+
+function renderWizardEngine() {
+  const eng = wizardProfile.engine || {};
+  // Reverse-map current engine to a preset
+  let preset = 'custom';
+  for (const [k, v] of Object.entries(ENGINE_PRESETS)) {
+    if (v.kind === eng.kind && v.model === eng.model && (v.base_url || null) === (eng.base_url || null)) {
+      preset = k; break;
+    }
+  }
+  document.querySelector(`input[name="enginePreset"][value="${preset}"]`).checked = true;
+  $('#wizEngineModel').value = eng.model || '';
+  if (eng.base_url) {
+    $('#wizEngineBaseUrlField').hidden = false;
+    $('#wizEngineBaseUrl').value = eng.base_url;
+  } else if (preset === 'custom' || preset === 'ollama' || preset === 'nim' || preset === 'openai') {
+    $('#wizEngineBaseUrlField').hidden = (preset === 'anthropic');
+  }
+  updateEnginePresetUI();
+}
+
+function updateEnginePresetUI() {
+  const preset = document.querySelector('input[name="enginePreset"]:checked').value;
+  const p = ENGINE_PRESETS[preset];
+  if (preset !== 'custom') {
+    $('#wizEngineModel').value = p.model;
+    $('#wizEngineBaseUrl').value = p.base_url || '';
+  }
+  $('#wizEngineBaseUrlField').hidden = (preset === 'anthropic');
+  // Highlight selected card
+  document.querySelectorAll('#enginePresets label').forEach(l => {
+    l.classList.toggle('checked', l.dataset.preset === preset);
+  });
+}
+
+document.querySelectorAll('input[name="enginePreset"]').forEach(r => {
+  r.addEventListener('change', () => {
+    _engineCaptured = false;
+    updateEnginePresetUI();
+  });
+});
+
+function captureWizardEngine() {
+  const preset = document.querySelector('input[name="enginePreset"]:checked').value;
+  const p = ENGINE_PRESETS[preset];
+  const eng = { kind: p.kind, model: $('#wizEngineModel').value.trim() };
+  const bu = $('#wizEngineBaseUrl').value.trim();
+  if (bu) eng.base_url = bu;
+  wizardProfile.engine = eng;
+  _engineCaptured = true;
+}
+
+// ----- Wizard step: adapter -----
+let _adapterCaptured = false;
+
+function renderWizardAdapter() {
+  const adp = wizardProfile.adapter || { kind: 'http', url: 'http://localhost:8321/predict' };
+  const kind = adp.kind || 'http';
+  document.querySelector(`input[name="adapterPreset"][value="${kind}"]`).checked = true;
+  updateAdapterPresetUI();
+  // Populate the path field with the existing value
+  $('#wizAdapterPath').value = adp.url || adp.model_path || adp.model_id || adp.model || '';
+}
+
+function updateAdapterPresetUI() {
+  const kind = document.querySelector('input[name="adapterPreset"]:checked').value;
+  const labels = {
+    http: ['URL', 'URL of the inference server', false],
+    mlx: ['Model folder', 'Path to a folder containing the MLX model', true],
+    transformers: ['HF model ID or local path', 'e.g. google/medgemma-1.5-4b-it', true],
+    anthropic: ['Anthropic vision model', 'e.g. claude-sonnet-4-6 (no path needed)', false],
+  };
+  const [lab, hint, browse] = labels[kind];
+  $('#wizAdapterPathLabel').textContent = lab;
+  $('#wizAdapterHint').textContent = hint;
+  $('#wizAdapterBrowseBtn').hidden = !browse;
+  document.querySelectorAll('#adapterPresets label').forEach(l => {
+    l.classList.toggle('checked', l.dataset.preset === kind);
+  });
+}
+
+document.querySelectorAll('input[name="adapterPreset"]').forEach(r => {
+  r.addEventListener('change', () => {
+    _adapterCaptured = false;
+    updateAdapterPresetUI();
+  });
+});
+
+function captureWizardAdapter() {
+  const kind = document.querySelector('input[name="adapterPreset"]:checked').value;
+  const val = $('#wizAdapterPath').value.trim();
+  let adapter;
+  if (kind === 'http') adapter = { kind: 'http', url: val || 'http://localhost:8321/predict' };
+  else if (kind === 'mlx') adapter = { kind: 'mlx', model_path: val };
+  else if (kind === 'transformers') adapter = { kind: 'transformers', model_id: val };
+  else adapter = { kind: 'anthropic', model: val || 'claude-sonnet-4-6' };
+  wizardProfile.adapter = adapter;
+  _adapterCaptured = true;
+}
+
+// ----- Wizard step: models -----
+
+function renderWizardModels() {
+  const ul = $('#wizModelsList');
+  ul.innerHTML = '';
+  const models = wizardProfile.models || [];
+  if (models.length === 0) {
+    ul.innerHTML = '<div class="registry-empty">No models registered yet. Click + Add model.</div>';
+    return;
+  }
+  models.forEach((m, i) => {
+    const li = document.createElement('li');
+    const ad = m.adapter || {};
+    const target = ad.url || ad.model_path || ad.model_id || ad.model || '?';
+    li.innerHTML = `
+      <div>
+        <div class="item-title">${m.name}</div>
+        <div class="item-meta">${ad.kind}: ${target}</div>
+      </div>
+      <button class="delete">Remove</button>`;
+    li.querySelector('.delete').onclick = () => {
+      wizardProfile.models.splice(i, 1);
+      renderWizardModels();
+    };
+    ul.appendChild(li);
+  });
+}
+
+// ----- Wizard step: datasets -----
+
+function renderWizardDatasets() {
+  const ul = $('#wizDatasetsList');
+  ul.innerHTML = '';
+  const datasets = wizardProfile.datasets || [];
+  if (datasets.length === 0) {
+    ul.innerHTML = '<div class="registry-empty">No datasets registered yet. Click + Add dataset.</div>';
+    return;
+  }
+  datasets.forEach((d, i) => {
+    const li = document.createElement('li');
+    li.innerHTML = `
+      <div>
+        <div class="item-title">${d.name}</div>
+        <div class="item-meta">${d.dataset_path}</div>
+      </div>
+      <button class="delete">Remove</button>`;
+    li.querySelector('.delete').onclick = () => {
+      wizardProfile.datasets.splice(i, 1);
+      renderWizardDatasets();
+    };
+    ul.appendChild(li);
+  });
+}
+
+// ----- Add Model modal -----
+
+function openAddModelModal() {
+  $('#addModelModal').hidden = false;
+  $('#newModelName').value = '';
+  $('#newModelPath').value = '';
+  $('#newModelMcc').value = '';
+  $('#newModelSens').value = '';
+  $('#newModelSpec').value = '';
+  $('#newModelBaselineSrc').value = '';
+  $('#newModelAdapterKind').value = 'http';
+  updateAddModelKindUI();
+  $('#newModelName').focus();
+}
+
+function closeAddModelModal() { $('#addModelModal').hidden = true; }
+
+$('#newModelAdapterKind').addEventListener('change', updateAddModelKindUI);
+
+function updateAddModelKindUI() {
+  const kind = $('#newModelAdapterKind').value;
+  const labels = {
+    http: ['URL', 'URL of the inference server', false, false],
+    mlx: ['Model folder', 'Folder containing the MLX model', true, true],
+    transformers: ['HF ID or local path', 'e.g. google/medgemma-1.5-4b-it', true, true],
+    anthropic: ['Vision model name', 'e.g. claude-sonnet-4-6', false, false],
+  };
+  const [lab, hint, showBrowse, showDrop] = labels[kind];
+  $('#newModelPathLabel').textContent = lab;
+  $('#newModelPathHint').textContent = hint;
+  $('#newModelBrowseBtn').hidden = !showBrowse;
+  $('#newModelDropzone').hidden = !showDrop;
+  // Default path/value per kind
+  const defaults = {
+    http: 'http://localhost:8321/predict',
+    mlx: '',
+    transformers: '',
+    anthropic: 'claude-sonnet-4-6',
+  };
+  if (!$('#newModelPath').value) $('#newModelPath').value = defaults[kind];
+}
+
+function saveAddModelModal() {
+  const name = $('#newModelName').value.trim();
+  if (!name) { alert('Display name is required.'); return; }
+  const kind = $('#newModelAdapterKind').value;
+  const val = $('#newModelPath').value.trim();
+  let adapter;
+  if (kind === 'http') adapter = { kind: 'http', url: val || 'http://localhost:8321/predict' };
+  else if (kind === 'mlx') adapter = { kind: 'mlx', model_path: val };
+  else if (kind === 'transformers') adapter = { kind: 'transformers', model_id: val };
+  else adapter = { kind: 'anthropic', model: val || 'claude-sonnet-4-6' };
+
+  const baseline_values = {};
+  ['mcc', 'sens', 'spec'].forEach(k => {
+    const el = $('#newModel' + k.charAt(0).toUpperCase() + k.slice(1));
+    if (el && el.value !== '') baseline_values[k === 'sens' ? 'sensitivity' : k === 'spec' ? 'specificity' : k] = parseFloat(el.value);
+  });
+  const baseline_source = $('#newModelBaselineSrc').value.trim();
+
+  const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+  wizardProfile.models = wizardProfile.models || [];
+  wizardProfile.models.push({
+    name,
+    id,
+    description: adapter.kind + (val ? ': ' + val : ''),
+    adapter,
+    baseline_values,
+    baseline_source,
+  });
+  closeAddModelModal();
+  renderWizardModels();
+}
+
+// ----- Add Dataset modal -----
+
+function openAddDatasetModal() {
+  $('#addDatasetModal').hidden = false;
+  $('#newDatasetName').value = '';
+  $('#newDatasetDescription').value = '';
+  $('#newDatasetPath').value = '';
+  $('#newDatasetManifest').value = '';
+  $('#newDatasetName').focus();
+}
+
+function closeAddDatasetModal() { $('#addDatasetModal').hidden = true; }
+
+function saveAddDatasetModal() {
+  const path = $('#newDatasetPath').value.trim();
+  if (!path) { alert('Dataset folder is required.'); return; }
+  const name = $('#newDatasetName').value.trim() || path.split('/').filter(Boolean).pop();
+  const description = $('#newDatasetDescription').value.trim();
+  const manifest = $('#newDatasetManifest').value.trim() || (path.replace(/\/$/, '') + '/manifest.csv');
+
+  wizardProfile.datasets = wizardProfile.datasets || [];
+  wizardProfile.datasets.push({
+    name,
+    description,
+    dataset_path: path,
+    manifest_path: manifest,
+  });
+  closeAddDatasetModal();
+  renderWizardDatasets();
+}
+
+// ----- Drag-and-drop into the dropzones -----
+
+function setupDropzone(zoneId, inputId) {
+  const zone = $('#' + zoneId);
+  if (!zone) return;
+  ['dragenter', 'dragover'].forEach(ev => zone.addEventListener(ev, e => {
+    e.preventDefault(); zone.classList.add('dragging');
+  }));
+  ['dragleave', 'drop'].forEach(ev => zone.addEventListener(ev, e => {
+    e.preventDefault(); zone.classList.remove('dragging');
+  }));
+  zone.addEventListener('drop', e => {
+    // Browsers don't expose absolute paths. We can read the dropped item's
+    // .name and (maybe) build a relative-looking path. Best UX is to ask
+    // the user to paste the absolute path.
+    const items = e.dataTransfer.items || [];
+    const names = [];
+    for (const it of items) {
+      const f = it.getAsFile && it.getAsFile();
+      if (f) names.push(f.name);
+    }
+    if (names.length) {
+      zone.textContent =
+        `Got: "${names[0]}" — but browsers don't expose the full path. ` +
+        `Paste the absolute path in the box above, or use Browse…`;
+    }
+  });
+}
+
+setupDropzone('newModelDropzone', 'newModelPath');
+setupDropzone('newDatasetDropzone', 'newDatasetPath');
+
+// ----- File browser modal -----
+
+async function openFileBrowser(targetFieldId) {
+  _fbTargetField = targetFieldId;
+  // Seed an immediate loading state so the modal isn't blank during the fetch
+  $('#fbPath').textContent = 'Loading…';
+  $('#fbList').innerHTML = '<div class="fb-entry">Loading…</div>';
+  $('#fileBrowserModal').hidden = false;
+  // Seed from the field if it already has a path; otherwise default to $HOME
+  const seed = (document.getElementById(targetFieldId) || {}).value || '';
+  await fbNavigate(seed);
+}
+
+function closeFileBrowser() { $('#fileBrowserModal').hidden = true; }
+
+async function fbNavigate(path) {
+  const showError = (msg) => {
+    console.error('[file browser]', msg);
+    $('#fbPath').textContent = '⚠ ' + msg;
+    $('#fbList').innerHTML = `<div class="fb-entry" style="color:var(--red)">${msg}</div>`;
+  };
+
+  let r, raw, body;
+  try {
+    raw = await fetch('/browse?path=' + encodeURIComponent(path));
+    body = await raw.text();
+  } catch (e) {
+    return showError(`Network error: ${e.message}`);
+  }
+  if (!raw.ok) {
+    let detail = body;
+    try { detail = JSON.parse(body).error || body; } catch (_) {}
+    return showError(`HTTP ${raw.status}: ${detail || '(no body)'}`);
+  }
+  try {
+    r = JSON.parse(body);
+  } catch (e) {
+    return showError(`Invalid JSON from /browse: ${body.slice(0, 200)}`);
+  }
+  if (r.error) {
+    return showError(r.error);
+  }
+  _fbCurrentPath = r.path;
+  $('#fbPath').textContent = r.path;
+  const list = $('#fbList');
+  list.innerHTML = '';
+  if (r.parent && r.parent !== r.path) {
+    const up = document.createElement('div');
+    up.className = 'fb-entry parent';
+    up.textContent = '.. (parent)';
+    up.onclick = () => fbNavigate(r.parent);
+    list.appendChild(up);
+  }
+  r.entries.forEach(e => {
+    const div = document.createElement('div');
+    div.className = 'fb-entry ' + e.kind;
+    div.textContent = e.name + (e.kind === 'file' && e.size != null ? `  (${humanSize(e.size)})` : '');
+    div.onclick = () => {
+      if (e.kind === 'dir') fbNavigate(e.path);
+      else {
+        // Picking a file directly returns its path
+        $('#' + _fbTargetField).value = e.path;
+        closeFileBrowser();
+      }
+    };
+    list.appendChild(div);
+  });
+}
+
+function selectCurrentFolder() {
+  if (_fbTargetField) $('#' + _fbTargetField).value = _fbCurrentPath;
+  closeFileBrowser();
+}
+
+function humanSize(n) {
+  if (n < 1024) return n + ' B';
+  if (n < 1024 * 1024) return (n / 1024).toFixed(0) + ' KB';
+  if (n < 1024 * 1024 * 1024) return (n / 1024 / 1024).toFixed(1) + ' MB';
+  return (n / 1024 / 1024 / 1024).toFixed(1) + ' GB';
+}
+
+// ======================================================================
+// Boot
+// ======================================================================
+
+loadWelcomeMeta();
+showOnly('welcomeView');
+connectSSE();
+</script>
+</body>
+</html>

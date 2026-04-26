@@ -1,0 +1,68 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "axis-agentic"
+version = "0.6.0"
+description = "Agentic evaluation framework for radiology AI models — task-agnostic agents, swappable engines and adapters."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [
+    { name = "Benedikt Schwaiger" },
+]
+keywords = [
+    "radiology",
+    "medical-imaging",
+    "agentic-ai",
+    "llm-evaluation",
+    "mura",
+    "vision-language-models",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Healthcare Industry",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Medical Science Apps.",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+]
+
+dependencies = [
+    "anthropic>=0.40.0",
+    "openai>=1.50.0",
+    "httpx==0.28.1",
+    "fastapi==0.135.1",
+    "uvicorn==0.41.0",
+    "PyYAML==6.0.3",
+    "matplotlib==3.10.8",
+    "numpy==2.4.3",
+    "tqdm==4.67.3",
+]
+
+[project.optional-dependencies]
+mlx = ["mlx-vlm"]
+transformers = ["torch", "transformers", "accelerate", "pillow"]
+all = ["mlx-vlm", "torch", "transformers", "accelerate", "pillow"]
+
+[project.scripts]
+axis-agentic = "axis_agentic.cli:main"
+
+[project.urls]
+Repository = "https://github.com/bschwaiger/axis-agentic"
+Issues = "https://github.com/bschwaiger/axis-agentic/issues"
+
+[tool.setuptools.packages.find]
+include = ["axis_agentic*", "orchestrator*", "inference*", "tools*", "cockpit*"]
+exclude = ["data*", "results*", "venv*", "scripts*", "server*", "docs*"]
+
+[tool.setuptools.package-data]
+cockpit = ["*.html", "*.css", "*.js"]
+tools = ["*.json"]
