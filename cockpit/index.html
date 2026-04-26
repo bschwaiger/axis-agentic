@@ -1363,9 +1363,22 @@ function handleEvent(evt) {
     case 'pipeline_error':
       setStatus('Error', 'error');
       setProgress(0, 'Error');
+      // Make sure the feed is visible so the user can see the error
+      $('#feed').className = 'active';
+      $('#feed').style.display = 'block';
       addLog('error-entry', `Pipeline error: ${evt.error || 'Unknown'}`);
       disableControls();
       pipelineRunning = false;
+      break;
+
+    default:
+      // Render any event type the cockpit doesn't have a dedicated case
+      // for — useful diagnostic if a stale browser cache misses new
+      // event handlers, and a safety net for events added server-side
+      // before the JS catches up.
+      $('#feed').className = 'active';
+      $('#feed').style.display = 'block';
+      addLog('info-entry', `[${evt.type}] ${JSON.stringify(evt).slice(0, 200)}`);
       break;
   }
 }

@@ -39,7 +39,15 @@ COCKPIT_DIR = Path(__file__).resolve().parent
 @app.get("/", response_class=HTMLResponse)
 async def index():
     html_path = COCKPIT_DIR / "index.html"
-    return HTMLResponse(html_path.read_text())
+    # No-cache so iterative dev-time changes show up without Cmd+Shift+R
+    return HTMLResponse(
+        html_path.read_text(),
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+            "Pragma": "no-cache",
+            "Expires": "0",
+        },
+    )
 
 
 # ------------------------------------------------------------------
