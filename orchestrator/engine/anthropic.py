@@ -17,7 +17,14 @@ class AnthropicEngine(Engine):
     """Engine backed by Anthropic's Messages API (tool_use content blocks)."""
 
     def __init__(self, model: str | None = None):
-        import anthropic
+        try:
+            import anthropic
+        except ImportError as e:
+            raise RuntimeError(
+                "Anthropic engine requires the `anthropic` package. "
+                "Run: pip install -r requirements.txt  (or pip install 'anthropic>=0.40.0'). "
+                f"Original error: {e}"
+            ) from e
         self._client = anthropic.Anthropic()
         self._model = model or DEFAULT_MODEL
         self._system: str = ""

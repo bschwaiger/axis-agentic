@@ -32,7 +32,14 @@ class OpenAICompatEngine(Engine):
         api_key: str | None = None,
         provider_name: str | None = None,
     ):
-        from openai import OpenAI
+        try:
+            from openai import OpenAI
+        except ImportError as e:
+            raise RuntimeError(
+                "OpenAI-compatible engine requires the `openai` package. "
+                "Run: pip install -r requirements.txt  (or pip install 'openai>=1.50.0'). "
+                f"Original error: {e}"
+            ) from e
         # Many local servers (Ollama) ignore the key; pass a placeholder if missing.
         resolved_key = api_key or os.environ.get("OPENAI_API_KEY") or "not-needed"
         self._client = OpenAI(base_url=base_url, api_key=resolved_key)
