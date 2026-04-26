@@ -606,6 +606,7 @@
     justify-content: center;
     z-index: 1000;
   }
+  .modal[hidden] { display: none !important; }
   .modal-content {
     background: var(--surface);
     border-radius: var(--radius);
@@ -2109,19 +2110,28 @@ setupDropzone('newDatasetDropzone', 'newDatasetPath');
 
 async function openFileBrowser(targetFieldId) {
   _fbTargetField = targetFieldId;
+  // Seed an immediate loading state so the modal isn't blank during the fetch
+  $('#fbPath').textContent = 'Loading…';
+  $('#fbList').innerHTML = '<div class="fb-entry">Loading…</div>';
   $('#fileBrowserModal').hidden = false;
-  // Start at $HOME (server picks default if no path supplied)
-  await fbNavigate('');
+  // Seed from the field if it already has a path; otherwise default to $HOME
+  const seed = (document.getElementById(targetFieldId) || {}).value || '';
+  await fbNavigate(seed);
 }
 
 function closeFileBrowser() { $('#fileBrowserModal').hidden = true; }
 
 async function fbNavigate(path) {
-  let r;
+  let r, raw;
   try {
-    r = await (await fetch('/browse?path=' + encodeURIComponent(path))).json();
+    raw = await fetch('/browse?path=' + encodeURIComponent(path));
+    if (!raw.ok) {
+      $('#fbList').innerHTML = `<div class="fb-entry">HTTP ${raw.status} — ${await raw.text()}</div>`;
+      return;
+    }
+    r = await raw.json();
   } catch (e) {
-    $('#fbList').innerHTML = `<div class="fb-entry">Error: ${e.message}</div>`;
+    $('#fbList').innerHTML = `<div class="fb-entry">Network error: ${e.message}</div>`;
     return;
   }
   if (r.error) {
