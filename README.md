@@ -6,7 +6,7 @@ Built around two abstractions: an **Engine** (the LLM driving the agents) and an
 
 ## Built at Agenthon 001
 
-🏆 **Nvidia Track Winner** (best Nemotron usage) and **4th overall** at [Agenthon 001](https://www.eventbrite.com/e/agenthon-001-agent-hackathon-tickets-1986748145184) — 100 solo builders, 6 hours, House of AI San Francisco, April 11 2026. Co-organized by opencompany and [Purple AI](https://www.bepurple.ai); sponsored by Nvidia, Daytona, and Tavily.
+🏆 **Nvidia Track Winner** (best Nemotron usage) and **4th overall** at [Agenthon 001](https://www.eventbrite.com/e/agenthon-001-agent-hackathon-tickets-1986748145184) — 75+ solo builders, 6 hours, House of AI San Francisco, April 11 2026. Co-organized by opencompany and [Purple AI](https://www.bepurple.ai); sponsored by Nvidia, Daytona, and Tavily.
 
 The submitted build orchestrated the agent loop with **Nemotron 3 Super 120B via NVIDIA NIM** (OpenAI-compatible function calling) and used **Tavily** for the Analyst's PubMed literature search, with two agents and a coordinator running end-to-end live across two datasets. Local inference targeted [AXIS-MURA-v1](https://github.com/bschwaiger/axis-mura), a LoRA fine-tune of MedGemma 1.5 4B running 4-bit on Apple Silicon via MLX.
 
@@ -161,6 +161,6 @@ axis-agentic/
 
 Source-available under [PolyForm Noncommercial 1.0.0](https://polyformproject.org/licenses/noncommercial/1.0.0) — free for noncommercial use (research, education, personal projects, and use by charitable, educational, public-research, public-safety/health, environmental, or government institutions). See [LICENSE](LICENSE) for the full terms.
 
-For commercial licensing, [open an issue](https://github.com/bschwaiger/axis-agentic/issues/new) on this repo.
+For commercial licensing, reach out via [LinkedIn](https://www.linkedin.com/in/benedikt-schwaiger/) or [open an issue](https://github.com/bschwaiger/axis-agentic/issues/new).
 
 Bring your own data and models; this repo doesn't bundle either.
