@@ -4,6 +4,16 @@
 
 Built around two abstractions: an **Engine** (the LLM driving the agents) and an **InferenceAdapter** (the model under test). Both are swappable. Plug in any vision-language model, a CNN, an HF Hub model, or a frontier API; orchestrate with Claude, GPT-4o, Nemotron, or a local Qwen via Ollama. Same agent loop, no code changes.
 
+## Built at Agenthon 001
+
+🏆 **Nvidia Track Winner** (best Nemotron usage) and **4th overall** at [Agenthon 001](https://www.eventbrite.com/e/agenthon-001-agent-hackathon-tickets-1986748145184) — 100 solo builders, 6 hours, House of AI San Francisco, April 11 2026. Co-organized by opencompany and [Purple AI](https://www.bepurple.ai); sponsored by Nvidia, Daytona, and Tavily.
+
+The submitted build orchestrated the agent loop with **Nemotron 3 Super 120B via NVIDIA NIM** (OpenAI-compatible function calling) and used **Tavily** for the Analyst's PubMed literature search, with two agents and a coordinator running end-to-end live across two datasets. Local inference targeted [AXIS-MURA-v1](https://github.com/bschwaiger/axis-mura), a LoRA fine-tune of MedGemma 1.5 4B running 4-bit on Apple Silicon via MLX.
+
+The day after, the orchestration layer was rebuilt on the Anthropic stack — Claude Sonnet 4.6 in place of Nemotron, Anthropic `web_search` in place of Tavily, MedGemma inference unchanged. That rebuild generalized into the `Engine` / `InferenceAdapter` abstractions you see in the architecture below: any provider, any model under test, same agent loop.
+
+## Architecture
+
 ```
 ┌─────────────────────────────────────────────────────────┐
 │                    Coordinator                          │
@@ -30,7 +40,7 @@ Built around two abstractions: an **Engine** (the LLM driving the agents) and an
 └─────────────────────────────────────────────────────────┘
 ```
 
-A specific trained model and its evaluation results live in a [separate repo](https://github.com/bschwaiger/axis-mura). This one is the framework only — task-agnostic.
+The framework is task-agnostic; the specific model and reproducibility artefacts live in [axis-mura](https://github.com/bschwaiger/axis-mura).
 
 ## Quick start (60 seconds, no model required)
 
@@ -52,7 +62,7 @@ Open <http://127.0.0.1:8322>. Pick **Use defaults**, click **Start**. Watch the 
 
 For real inference, run `axis-agentic init`, register your model and dataset (browse-button file picker), then `axis-agentic cockpit` — the framework auto-starts Ollama, the bundled inference server, or whatever else is needed.
 
-## Architecture
+## Components
 
 Two abstractions; both are swappable in the cockpit wizard or via the profile YAML at `~/.config/axis-agentic/profile.yaml`.
 
