@@ -19,23 +19,23 @@ The day after, the orchestration layer was rebuilt on the Anthropic stack — Cl
 │                    Coordinator                          │
 │         1 model × N datasets evaluation loop            │
 │                                                         │
-│  ┌─────────────┐         ┌─────────────┐               │
-│  │  Evaluator  │ ──────▶ │   Analyst   │               │
-│  │  (Agent 1)  │ matrix  │  (Agent 2)  │               │
-│  │             │         │             │               │
-│  │ run_        │         │ compare_    │               │
-│  │  inference  │         │  baselines  │               │
-│  │ validate_   │         │ search_     │               │
-│  │  results    │         │  literature │               │
-│  │ compute_    │         │ generate_   │               │
-│  │  metrics    │         │  figures    │               │
-│  │             │         │ write_      │               │
-│  │             │         │  report     │               │
-│  └──────┬──────┘         └──────┬──────┘               │
+│  ┌─────────────┐         ┌─────────────┐                │
+│  │  Evaluator  │ ──────▶ │   Analyst   │                │
+│  │  (Agent 1)  │ matrix  │  (Agent 2)  │                │
+│  │             │         │             │                │
+│  │ run_        │         │ compare_    │                │
+│  │  inference  │         │  baselines  │                │
+│  │ validate_   │         │ search_     │                │
+│  │  results    │         │  literature │                │ 
+│  │ compute_    │         │ generate_   │                │
+│  │  metrics    │         │  figures    │                │
+│  │             │         │ write_      │                │
+│  │             │         │  report     │                │
+│  └──────┬──────┘         └──────┬──────┘                │
 │         │                       │                       │
-│   InferenceAdapter         Engine web search           │
-│   (HTTP / MLX /            (Anthropic web_search       │
-│    transformers /           on PubMed)                 │
+│   InferenceAdapter         Engine web search            │
+│   (HTTP / MLX /            (Anthropic web_search        │
+│    transformers /           on PubMed)                  │
 │    Anthropic vision)                                    │
 └─────────────────────────────────────────────────────────┘
 ```
