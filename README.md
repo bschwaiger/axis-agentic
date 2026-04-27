@@ -159,4 +159,8 @@ axis-agentic/
 
 ## License
 
-Apache License 2.0 — see [LICENSE](LICENSE). Bring your own data and models; this repo doesn't bundle either.
+Source-available under [PolyForm Noncommercial 1.0.0](https://polyformproject.org/licenses/noncommercial/1.0.0) — free for noncommercial use (research, education, personal projects, and use by charitable, educational, public-research, public-safety/health, environmental, or government institutions). See [LICENSE](LICENSE) for the full terms.
+
+For commercial licensing, [open an issue](https://github.com/bschwaiger/axis-agentic/issues/new) on this repo.
+
+Bring your own data and models; this repo doesn't bundle either.
